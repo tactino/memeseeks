@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         迷因捕手 · 收梗
+// @name         迷因捕手 · 采集迷因
 // @namespace    memeseeks
-// @version      0.1.0
+// @version      0.1.1
 // @description  Collect the memes on the page you are reading into your own memeseeks library. Only acts when you click.
 // @match        *://*/*
 // @noframes
@@ -15,7 +15,7 @@
 // @connect      *
 // ==/UserScript==
 
-// What it does: when you click 收梗, it lists the images on the page you are looking at and sends the
+// What it does: when you click 采集迷因, it lists the images on the page you are looking at and sends the
 // ones you tick to your memeseeks server. It never turns pages or runs on its own, and it sends
 // nothing but the image, the site name, the page link and the page title.
 
@@ -227,7 +227,7 @@
         .msg { color: #6B6F85; font-size: 13px; flex: 1 1 100%; }
         .x { border: 0; background: none; font-size: 20px; cursor: pointer; }
       </style>
-      <button class="fab" type="button">收梗</button>`;
+      <button class="fab" type="button">采集迷因</button>`;
     const fab = root.querySelector(".fab");
     let panel = null;
 
@@ -237,12 +237,12 @@
       panel = document.createElement("div");
       panel.className = "panel";
       panel.innerHTML = `
-        <div class="head"><b>收进迷因捕手 · ${page.items.length} 张</b><button class="x" type="button" title="关闭">×</button></div>
+        <div class="head"><b>采集迷因 · 这一页有 ${page.items.length} 张</b><button class="x" type="button" title="关闭">×</button></div>
         <div class="grid"></div>
         <div class="foot">
           <button class="act all" type="button">全选</button><button class="act none" type="button">全不选</button>
-          <button class="act go" type="button">收进去</button>
-          <div class="msg">${page.items.length ? "只收这一页上你勾选的图。" : "这一页上没找到像梗图的图。"}</div>
+          <button class="act go" type="button">采集</button>
+          <div class="msg">${page.items.length ? "只采集这一页上你勾选的图。" : "这一页上没找到像梗图的图。"}</div>
         </div>`;
       const grid = panel.querySelector(".grid");
       const msg = panel.querySelector(".msg");
@@ -259,7 +259,7 @@
         return { item, box, label };
       });
       const go = panel.querySelector(".go");
-      const count = () => { go.textContent = `收进去（${boxes.filter((b) => b.box.checked).length}）`; };
+      const count = () => { go.textContent = `采集（${boxes.filter((b) => b.box.checked).length}）`; };
       grid.addEventListener("change", count);
       count();
       panel.querySelector(".all").addEventListener("click", () => { boxes.forEach((b) => { b.box.checked = true; }); count(); });
@@ -271,11 +271,11 @@
         const tally = { added: 0, duplicate: 0, failed: 0 };
         let lastError = "";
         for (const [n, b] of chosen.entries()) {
-          msg.textContent = `正在收第 ${n + 1}/${chosen.length} 张…`;
+          msg.textContent = `正在采集第 ${n + 1}/${chosen.length} 张…`;
           try {
             const status = await send(b.item, page);
             tally[status === "added" ? "added" : "duplicate"] += 1;
-            b.label.dataset.mark = status === "added" ? "已收" : "库里已有";
+            b.label.dataset.mark = status === "added" ? "已采集" : "库里已有";
           } catch (err) {
             tally.failed += 1;
             lastError = err.message;
@@ -285,7 +285,7 @@
           b.box.checked = false;
           if (n < chosen.length - 1) await sleep(GAP_MS);
         }
-        msg.textContent = `新收 ${tally.added} 张，库里已有 ${tally.duplicate} 张` +
+        msg.textContent = `新采集 ${tally.added} 张，库里已有 ${tally.duplicate} 张` +
           (tally.failed ? `，失败 ${tally.failed} 张（${lastError}）` : "") + "。一分钟内就能搜到。";
         go.disabled = false;
         count();
@@ -299,11 +299,11 @@
     module.exports = { absolute, doubanLarge, xhsImageUrl, looksLikeContent, siteOf };
     return;
   }
-  GM_registerMenuCommand("在这个网站隐藏收梗按钮", () => {
+  GM_registerMenuCommand("在这个网站隐藏采集迷因按钮", () => {
     GM_setValue("hiddenHosts", [...new Set([...hiddenHosts(), location.hostname])]);
     location.reload();
   });
-  GM_registerMenuCommand("在这个网站显示收梗按钮", () => {
+  GM_registerMenuCommand("在这个网站显示采集迷因按钮", () => {
     GM_setValue("hiddenHosts", hiddenHosts().filter((h) => h !== location.hostname));
     location.reload();
   });
