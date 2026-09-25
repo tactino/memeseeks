@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -18,6 +18,7 @@ from .library import LibraryError
 from .search import EmptyLibrary
 
 WEB = Path(__file__).parent / "web"
+USERSCRIPT = Path(__file__).parent / "browser" / "memeseeks.user.js"
 TOKEN_COOKIE = "memeseeks_token"
 INBOX_KEY_HEADER = "x-memeseeks-key"
 MAX_INBOX_BODY = MAX_IMAGE_BYTES * 4 // 3 + 64 * 1024  # base64 image plus a little metadata
@@ -75,6 +76,15 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
         return online.as_json() if online is not None else {"enabled": False}
 
     if inbox is not None:
+        @app.get("/api/inbox/memeseeks.user.js")
+        def userscript(request: Request):
+            # Under /api/ like the library itself: with a token, only a signed-in browser gets the key.
+            server = str(request.base_url).rstrip("/")
+            script = USERSCRIPT.read_text(encoding="utf-8")
+            script = script.replace('"__MEMESEEKS_SERVER__"', json.dumps(server))
+            script = script.replace('"__MEMESEEKS_KEY__"', json.dumps(inbox.key()))
+            return Response(script, media_type="text/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+
         @app.post("/api/inbox")
         async def receive(request: Request):
             # Only the browser script knows this key. Ordinary web pages can't send a custom header

@@ -72,9 +72,18 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 The home screen shows 旧梗重温 — memes you have not seen in a while — and a search box. Tap a meme for 复制 / 保存 / 分享. On the computer running it (`localhost`) it also installs as an app from the browser menu.
 
-**New memes are picked up by themselves.** While `serve` runs, images you add to any library folder are indexed in the background and become searchable within about a minute (`--no-watch` turns this off). On Windows the indexing runs at below-normal priority, so the rest of the computer stays responsive. The library also has an inbox folder, `<library>/inbox`, for memes that don't belong to one of your folders; a browser script that collects memes from community pages into it is next on the roadmap.
+**New memes are picked up by themselves.** While `serve` runs, images you add to any library folder are indexed in the background and become searchable within about a minute (`--no-watch` turns this off). On Windows the indexing runs at below-normal priority, so the rest of the computer stays responsive. The library also has an inbox folder, `<library>/inbox`, for memes that don't belong to one of your folders.
 
 **From your phone:** run `memeseeks serve --host 0.0.0.0 --token <something secret>` and open the printed link with your computer's LAN address. Over plain `http` the phone can search and **save**; **copy** and **share** (and installing as an app) need `localhost` or HTTPS, because browsers only allow them in a secure context.
+
+### Collecting memes from community pages
+
+A userscript adds a 收梗 button to the pages you read. Click it and it lists the images on that page; the ones you tick go into your library's inbox, together with the site, the page link and its title, and are searchable within about a minute. It has special handling for 百度贴吧 (original-size images from every floor on the page), 小红书 (all images of a note) and 豆瓣小组 (large versions of topic and reply images), and a generic mode for any other site.
+
+1. Install [Violentmonkey](https://violentmonkey.github.io/) (Firefox or Chrome).
+2. With `memeseeks serve` running, open the web app and click 「从社区收梗：连接浏览器」 → 安装收梗脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
+
+It only acts when you click, only on the page you are looking at, and downloads at most two images a second. It never turns pages or collects in the background, and it sends nothing besides the image, the site name, the page link and the page title. You can hide the button on a site from the Violentmonkey menu.
 
 ### Online search (optional)
 

@@ -249,3 +249,7 @@ button:focus-visible, a:focus-visible, .tile:focus-visible { outline: 3px solid 
 .source { color: var(--muted); font-size: 13px; }
 .source a { color: inherit; }
 iframe.tile.ad { width: 100%; aspect-ratio: 1; border: 0; }
+
+.page-foot { margin-top: 40px; color: var(--muted); font-size: 14px; }
+.connect summary { cursor: pointer; font-weight: 700; }
+.connect a { color: var(--ink); font-weight: 700; }
