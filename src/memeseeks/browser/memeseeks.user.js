@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         迷因捕手 · 采集迷因
+// @name         迷因捕手
 // @namespace    memeseeks
-// @version      0.1.1
+// @version      0.1.2
 // @description  Collect the memes on the page you are reading into your own memeseeks library. Only acts when you click.
 // @match        *://*/*
 // @noframes
@@ -15,7 +15,7 @@
 // @connect      *
 // ==/UserScript==
 
-// What it does: when you click 采集迷因, it lists the images on the page you are looking at and sends the
+// What it does: when you click 采集 meme, it lists the images on the page you are looking at and sends the
 // ones you tick to your memeseeks server. It never turns pages or runs on its own, and it sends
 // nothing but the image, the site name, the page link and the page title.
 
@@ -227,7 +227,7 @@
         .msg { color: #6B6F85; font-size: 13px; flex: 1 1 100%; }
         .x { border: 0; background: none; font-size: 20px; cursor: pointer; }
       </style>
-      <button class="fab" type="button">采集迷因</button>`;
+      <button class="fab" type="button">采集 meme</button>`;
     const fab = root.querySelector(".fab");
     let panel = null;
 
@@ -237,7 +237,7 @@
       panel = document.createElement("div");
       panel.className = "panel";
       panel.innerHTML = `
-        <div class="head"><b>采集迷因 · 这一页有 ${page.items.length} 张</b><button class="x" type="button" title="关闭">×</button></div>
+        <div class="head"><b>采集 meme · 这一页有 ${page.items.length} 张</b><button class="x" type="button" title="关闭">×</button></div>
         <div class="grid"></div>
         <div class="foot">
           <button class="act all" type="button">全选</button><button class="act none" type="button">全不选</button>
@@ -299,11 +299,11 @@
     module.exports = { absolute, doubanLarge, xhsImageUrl, looksLikeContent, siteOf };
     return;
   }
-  GM_registerMenuCommand("在这个网站隐藏采集迷因按钮", () => {
+  GM_registerMenuCommand("在这个网站隐藏采集 meme 按钮", () => {
     GM_setValue("hiddenHosts", [...new Set([...hiddenHosts(), location.hostname])]);
     location.reload();
   });
-  GM_registerMenuCommand("在这个网站显示采集迷因按钮", () => {
+  GM_registerMenuCommand("在这个网站显示采集 meme 按钮", () => {
     GM_setValue("hiddenHosts", hiddenHosts().filter((h) => h !== location.hostname));
     location.reload();
   });

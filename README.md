@@ -78,10 +78,10 @@ The home screen shows 旧梗重温 — memes you have not seen in a while — an
 
 ### Collecting memes from community pages
 
-A userscript adds a 采集迷因 button to the pages you read. Click it and it lists the images on that page; the ones you tick go into your library's inbox, together with the site, the page link and its title, and are searchable within about a minute. It has special handling for 百度贴吧 (original-size images from every floor on the page), 小红书 (all images of a note) and 豆瓣小组 (large versions of topic and reply images), and a generic mode for any other site.
+A userscript adds a 采集 meme button to the pages you read. Click it and it lists the images on that page; the ones you tick go into your library's inbox, together with the site, the page link and its title, and are searchable within about a minute. It has special handling for 百度贴吧 (original-size images from every floor on the page), 小红书 (all images of a note) and 豆瓣小组 (large versions of topic and reply images), and a generic mode for any other site.
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) (Firefox or Chrome).
-2. With `memeseeks serve` running, open the web app and click 「从社区采集迷因：连接浏览器」 → 安装采集迷因脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
+2. With `memeseeks serve` running, open the web app and click 「从社区采集 meme：连接浏览器」 → 安装采集 meme 脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
 
 It only acts when you click, only on the page you are looking at, and downloads at most two images a second. It never turns pages or collects in the background, and it sends nothing besides the image, the site name, the page link and the page title. You can hide the button on a site from the Violentmonkey menu.
 
