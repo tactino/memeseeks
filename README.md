@@ -84,6 +84,8 @@ A userscript adds a 采集 meme button to the pages you read. Click it and it li
 1. Install [Violentmonkey](https://violentmonkey.github.io/) (Firefox or Chrome).
 2. With `memeseeks serve` running, open the web app and click 「从社区采集 meme：连接浏览器」 → 安装采集 meme 脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
 
+Collected images with little text (fewer than 15 characters) are probably 表情包, so they wait under 「待确认」 on the home page until you choose 要 (into the library) or 不要 (moved to `<library>/rejected`, not deleted; undo is one click). Your decisions are kept on your machine to train a personal classifier later. Images in your own folders are never held back.
+
 It only acts when you click, only on the page you are looking at, and downloads at most two images a second. It never turns pages or collects in the background, and it sends nothing besides the image, the site name, the page link and the page title. You can hide the button on a site from the Violentmonkey menu.
 
 ### Online search (optional)

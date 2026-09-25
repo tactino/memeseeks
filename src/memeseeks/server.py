@@ -15,6 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .inbox import MAX_IMAGE_BYTES, InboxError
 from .library import LibraryError
+from .review import ReviewError
 from .search import EmptyLibrary
 
 WEB = Path(__file__).parent / "web"
@@ -105,6 +106,36 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
             if result["status"] == "added" and indexer is not None:
                 indexer.request()
             return result
+
+    @app.get("/api/review")
+    def review_list():
+        found = service.review_list()
+        return {"pending": _with_urls(found["pending"]), "progress": found["progress"]}
+
+    @app.post("/api/review")
+    async def review_decide(request: Request):
+        # JSON only: a page on another site can't send that here (its CORS preflight is never granted).
+        if request.headers.get("content-type", "").split(";")[0].strip() != "application/json":
+            return JSONResponse({"error": "send JSON"}, status_code=415)
+        try:
+            body = json.loads(await request.body())
+            ids = body["ids"] if "ids" in body else [body["id"]]
+            decision = body["decision"]
+            if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
+                raise TypeError("ids must be a list of strings")
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            return JSONResponse({"error": f"bad request: {exc}"}, status_code=400)
+        results = {}
+        for image_id in ids:
+            try:
+                results[image_id] = service.decide(image_id, decision)
+            except ReviewError as exc:
+                results[image_id] = f"error: {exc}"
+        if indexer is not None and any(r in ("rejected", "kept") for r in results.values()):
+            indexer.request()  # a reject (or its undo) changed the inbox folder
+        failed = [r for r in results.values() if r.startswith("error")]
+        status = 400 if failed and len(failed) == len(results) else 200
+        return JSONResponse({"results": results, "progress": service.review.progress()}, status_code=status)
 
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):

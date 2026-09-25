@@ -6,6 +6,8 @@ const els = {
   results: $("results"), resultsGrid: $("results-grid"), resultsTitle: $("results-title"), back: $("back"),
   maybe: $("maybe"), maybeTitle: $("maybe-title"), maybeGrid: $("maybe-grid"),
   online: $("online"), onlineGrid: $("online-grid"), onlineSource: $("online-source"), onlineNotice: $("online-notice"),
+  reviewOpen: $("review-open"), reviewCount: $("review-count"), review: $("review"), reviewGrid: $("review-grid"),
+  reviewProgress: $("review-progress"), reviewAll: $("review-all"), reviewBack: $("review-back"),
   notice: $("notice"), viewer: $("viewer"), viewerImg: $("viewer-img"), viewerText: $("viewer-text"),
   copy: $("copy"), save: $("save"), share: $("share"), close: $("close"), toast: $("toast"),
 };
@@ -19,6 +21,21 @@ async function api(path) {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `请求失败（${res.status}）`);
   return body;
+}
+
+async function postJSON(path, body) {
+  const res = await fetch(path, {
+    method: "POST", credentials: "same-origin",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || firstError(data) || `请求失败（${res.status}）`);
+  return data;
+}
+
+function firstError(data) {
+  const found = Object.values((data && data.results) || {}).find((r) => String(r).startsWith("error"));
+  return found ? String(found).replace(/^error: /, "") : "";
 }
 
 function notice(text, isError = false) {
@@ -53,6 +70,7 @@ function renderGrid(grid, items) {
 
 async function loadHome() {
   notice("");
+  refreshReviewCount();
   try {
     const items = await api("/api/rediscover?n=12");
     renderGrid(els.homeGrid, items);
@@ -143,7 +161,114 @@ function reportShare(item) {
   }).catch(() => {});
 }
 
+// ---------- 待确认 ----------
+
+async function refreshReviewCount() {
+  try {
+    const { pending_review: n } = await api("/api/status");
+    els.reviewCount.textContent = n;
+    els.reviewOpen.hidden = !n || !els.review.hidden || !els.results.hidden;
+  } catch (err) {
+    els.reviewOpen.hidden = true;
+  }
+}
+
+function showProgress(p) {
+  const done = `已确认 ${p.decided} 次（其中不要 ${p.rejected} 次）。`;
+  els.reviewProgress.textContent = done + (p.can_train
+    ? "已经够训练你自己的判别器了，这个功能下一步上线。"
+    : `确认满 ${p.train_after} 次、其中不要至少 ${p.train_after_rejects} 次后，就能训练你自己的判别器。`);
+}
+
+function reviewCard(item) {
+  const card = document.createElement("div");
+  card.className = "review-card";
+  card.dataset.id = item.id;
+  const tile = document.createElement("button");
+  tile.type = "button";
+  tile.className = "tile";
+  const img = document.createElement("img");
+  img.src = item.thumb;
+  img.loading = "lazy";
+  img.alt = item.text ? item.text.slice(0, 60) : "待确认的图";
+  tile.append(img);
+  tile.addEventListener("click", () => openViewer(item));
+  const choices = document.createElement("div");
+  choices.className = "choices";
+  const keep = document.createElement("button");
+  keep.type = "button";
+  keep.className = "keep";
+  keep.textContent = "要";
+  const reject = document.createElement("button");
+  reject.type = "button";
+  reject.textContent = "不要";
+  choices.append(keep, reject);
+  card.append(tile, choices);
+  card.reviewDecide = async (decision) => {
+    try {
+      const { progress } = await postJSON("/api/review", { id: item.id, decision });
+      showProgress(progress);
+      markDecided(card, decision);
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+  keep.addEventListener("click", () => card.reviewDecide("keep"));
+  reject.addEventListener("click", () => card.reviewDecide("reject"));
+  return card;
+}
+
+function markDecided(card, decision) {
+  card.classList.add("decided");
+  const done = document.createElement("div");
+  done.className = "done";
+  const label = document.createElement("span");
+  label.textContent = decision === "keep" ? "已放进图库" : "已移到 rejected";
+  done.append(label);
+  if (decision === "reject") {
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.textContent = "撤销";
+    undo.addEventListener("click", () => card.reviewDecide("keep"));
+    done.append(undo);
+  }
+  card.querySelector(".choices, .done").replaceWith(done);
+}
+
+async function showReview() {
+  els.home.hidden = true;
+  els.results.hidden = true;
+  els.online.hidden = true;
+  els.reviewOpen.hidden = true;
+  els.review.hidden = false;
+  notice("");
+  try {
+    const { pending, progress } = await api("/api/review");
+    showProgress(progress);
+    els.reviewGrid.replaceChildren(...pending.map(reviewCard));
+    els.reviewAll.hidden = !pending.length;
+    if (!pending.length) notice("没有待确认的图了。");
+  } catch (err) {
+    notice(err.message, true);
+  }
+}
+
+els.reviewOpen.addEventListener("click", showReview);
+els.reviewBack.addEventListener("click", () => { els.q.value = ""; showHome(); loadHome(); });
+els.reviewAll.addEventListener("click", async () => {
+  const cards = [...els.reviewGrid.querySelectorAll(".review-card:not(.decided)")];
+  if (!cards.length) return;
+  try {
+    const { progress } = await postJSON("/api/review", { ids: cards.map((c) => c.dataset.id), decision: "keep" });
+    showProgress(progress);
+    cards.forEach((c) => markDecided(c, "keep"));
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
 function showHome() {
+  els.review.hidden = true;
   els.online.hidden = true;
   els.results.hidden = true;
   els.home.hidden = false;
@@ -152,6 +277,8 @@ function showHome() {
 }
 
 async function search(query) {
+  els.review.hidden = true;
+  els.reviewOpen.hidden = true;
   els.home.hidden = true;
   els.results.hidden = false;
   els.resultsTitle.textContent = "正在搜捕…";

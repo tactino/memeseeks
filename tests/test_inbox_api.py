@@ -51,6 +51,8 @@ def test_collected_meme_becomes_searchable_after_background_indexing(tmp_path):
     assert client.get("/api/status").json()["indexing"]["pending"] is True
     now[0] += 2
     assert indexer.tick() is True
+    assert [p["id"] for p in client.get("/api/review").json()["pending"]] == [r.json()["id"]]  # little text
+    client.post("/api/review", json={"id": r.json()["id"], "decision": "keep"})
     hits = client.get("/api/search", params={"q": "猫"}).json()["matches"]
     assert [h["id"] for h in hits] == [r.json()["id"]]
     assert hits[0]["source"]["page_title"] == "人类超爱梗"

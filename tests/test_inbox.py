@@ -141,6 +141,8 @@ def test_search_results_carry_where_a_meme_came_from(tmp_path):
     lib.add_source(tmp_path / "album")
     lib.update(_models(), log=lambda m: None)
     service = LibraryService(lib, _models(), rng=random.Random(0))
+    assert service.search("猫")["matches"] == []  # little text: it waits in 待确认 first
+    service.decide(got["id"], "keep")
     hit = service.search("猫")["matches"][0]
     assert hit["id"] == got["id"]
     assert hit["source"] == {"site": "贴吧", "page_url": "https://tieba.baidu.com/p/123", "page_title": "今日份梗图"}

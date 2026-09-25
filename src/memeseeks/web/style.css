@@ -23,6 +23,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }  /* a component's own display rule must never unhide it */
 
 body {
   margin: 0;
@@ -249,6 +250,31 @@ button:focus-visible, a:focus-visible, .tile:focus-visible { outline: 3px solid 
 .source { color: var(--muted); font-size: 13px; }
 .source a { color: inherit; }
 iframe.tile.ad { width: 100%; aspect-ratio: 1; border: 0; }
+
+.review-bar {
+  display: block;
+  width: 100%;
+  margin: -8px 0 18px;
+  padding: 10px 14px;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--trap) 30%, var(--paper));
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.head-actions { display: flex; gap: 8px; }
+.progress { font-size: 14px; color: var(--muted); }
+.review-card { break-inside: avoid; margin: 0 0 var(--gap); }
+.review-card .tile { margin: 0; }
+.review-card .choices { display: flex; gap: 6px; margin-top: 6px; }
+.review-card .choices button { flex: 1; font: inherit; font-weight: 700; padding: 6px 0; border-radius: 8px; cursor: pointer;
+  border: 2px solid var(--ink); background: transparent; color: var(--ink); }
+.review-card .choices button.keep { background: var(--ink); color: var(--paper); }
+.review-card.decided .tile { opacity: .35; }
+.review-card .done { margin-top: 6px; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; }
+.review-card .done button { font: inherit; color: var(--ink); background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 0; }
 
 .page-foot { margin-top: 40px; color: var(--muted); font-size: 14px; }
 .connect summary { cursor: pointer; font-weight: 700; }

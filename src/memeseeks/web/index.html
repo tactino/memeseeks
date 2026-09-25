@@ -22,6 +22,8 @@
 </form>
 
 <main>
+  <button type="button" class="review-bar" id="review-open" hidden>待确认 <b id="review-count"></b> 张 · 采集来的图里可能有表情包</button>
+
   <section id="home" aria-labelledby="home-title">
     <div class="section-head">
       <h2 id="home-title">旧梗重温</h2>
@@ -49,6 +51,19 @@
     </div>
     <p class="notice" id="online-notice" hidden></p>
     <div class="grid" id="online-grid"></div>
+  </section>
+
+  <section id="review" hidden aria-labelledby="review-title">
+    <div class="section-head">
+      <h2 id="review-title">待确认</h2>
+      <span class="head-actions">
+        <button type="button" class="quiet" id="review-all">全要</button>
+        <button type="button" class="quiet" id="review-back">回到旧梗重温</button>
+      </span>
+    </div>
+    <p class="notice">这些是采集来的、字比较少的图，可能是表情包。「要」放进图库，「不要」移到图库的 rejected 文件夹（不删除，可以撤销）。</p>
+    <p class="progress" id="review-progress"></p>
+    <div class="grid" id="review-grid"></div>
   </section>
 
   <p class="notice" id="notice" hidden></p>

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .images import load_image
 from .inbox import PROVENANCE_FILE, read_provenance
+from .review import Review
 from .index import _atomic_write_text, _tmp_for
 from .search import Searcher
 
@@ -33,6 +34,7 @@ class LibraryService:
         self._searcher_lock = threading.Lock()
         self._seen_lock = threading.Lock()
         self._provenance, self._provenance_stamp = {}, None
+        self.review = Review(library)
 
     def _index_stamp(self):
         stamps = []
@@ -72,12 +74,32 @@ class LibraryService:
             item["source"] = {k: found[0][k] for k in ("site", "page_url", "page_title") if k in found[0]}
         return item
 
+    def _hidden(self, s: Searcher) -> set[str]:
+        return self.review.hidden(s.paths, s.text)
+
     def search(self, query: str, maybe_k: int = 12) -> dict:
         """Confident matches first; `maybe` holds a few more candidates for when nothing is certain."""
         s = self.searcher()
-        matches, maybe = s.split_search(query, maybe_k=maybe_k)
+        hidden = self._hidden(s)
+        matches, maybe = s.split_search(query, maybe_k=maybe_k + len(hidden))
+        matches = [h for h in matches if h.id not in hidden]
+        maybe = [h for h in maybe if h.id not in hidden][:maybe_k]
         return {"matches": [self._item(s, h.id, h.score, h.match) for h in matches],
                 "maybe": [self._item(s, h.id, h.score, h.match) for h in maybe]}
+
+    def review_list(self) -> dict:
+        """Collected memes waiting for 要 / 不要, newest first, and how far training is."""
+        s = self.searcher()
+        pending = self.review.pending(s.paths, s.text)
+        newest = sorted(pending, key=lambda i: -self._collected_at(i))
+        return {"pending": [self._item(s, i) for i in newest], "progress": self.review.progress()}
+
+    def _collected_at(self, image_id: str) -> float:
+        found = self.sources().get(image_id)
+        return found[-1].get("at", 0.0) if found else 0.0
+
+    def decide(self, image_id: str, decision: str) -> str:
+        return self.review.decide(image_id, decision, self.library.paths())
 
     def path(self, image_id: str) -> Path | None:
         """Only ids the library knows, and only if the file still exists: never a client-supplied path."""
@@ -112,11 +134,13 @@ class LibraryService:
             except json.JSONDecodeError:
                 seen = {}  # only a display order; start over rather than fail every request
             now = self.clock()
-            picked = pick_rediscover(s.ids, seen, n, now, self.rng)
+            hidden = self._hidden(s)
+            picked = pick_rediscover([i for i in s.ids if i not in hidden], seen, n, now, self.rng)
             seen.update({i: now for i in picked})
             _atomic_write_text(seen_path, json.dumps(seen))
         return [self._item(s, i) for i in picked]
 
     def status(self) -> dict:
         s = self.searcher()
-        return {"images": len(s.ids), "with_text": len(s.text), "vlm": bool(self.library.config()["vlm"])}
+        return {"images": len(s.ids), "with_text": len(s.text), "vlm": bool(self.library.config()["vlm"]),
+                "pending_review": len(self.review.pending(s.paths, s.text))}
