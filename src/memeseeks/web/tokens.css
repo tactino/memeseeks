@@ -1,0 +1,62 @@
+/* Design tokens for 迷因捕手 (see docs/design.md). Every colour, line, shadow, font and timing the UI
+   uses comes from here; change a value here, not in the components. */
+
+@font-face {
+  font-family: "Memeseeks Serif";
+  src: url("fonts/memeseeks-serif.woff2") format("woff2");
+  font-weight: 600 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Memeseeks Mono";
+  src: url("fonts/memeseeks-mono.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+:root {
+  /* colour: warm paper, black ink, one yellow; red and blue only in Mondrian blocks and errors */
+  --paper: #F3EFE4;
+  --card: #FFFFFF;
+  --ink: #161411;
+  --muted: #6E685C;
+  --rule: #CFC6B2;          /* hairlines, unselected borders */
+  --rule-soft: #E2DACA;     /* card outlines */
+  --accent: #FFD21F;        /* the brand yellow */
+  --red: #DE3B2E;
+  --blue: #1F4FA3;
+  --on-accent: var(--ink);
+
+  /* type: the serif (bundled subset) is for UI words only; meme text uses the reader's system fonts */
+  --font-serif: "Memeseeks Serif", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
+  --font-content-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
+  --font-sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "Memeseeks Mono", "JetBrains Mono", Consolas, "SF Mono", monospace;
+  --text: 15px;
+  --leading: 1.65;
+
+  /* lines and shadows: black lines of a few set weights; shadows are hard, never blurred */
+  --line-hair: 1px;
+  --line-thin: 2px;
+  --line: 3px;
+  --line-heavy: 5px;
+  --shadow-hard: 4px 4px 0 var(--ink);
+  --shadow-hard-lg: 6px 6px 0 var(--ink);
+
+  /* space: multiples of 4 */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+  --gutter: 16px;           /* side margin on phones */
+
+  /* the Mondrian frame around the window */
+  --frame-top: 24px; --frame-bottom: 28px; --frame-side: 22px;
+
+  /* motion */
+  --ease: cubic-bezier(.65, 0, .25, 1);        /* moves: slides, the logo gliding */
+  --ease-out: cubic-bezier(.2, .8, .2, 1);     /* things appearing */
+  --dur-fast: 150ms;
+  --dur: 350ms;
+  --dur-slow: 550ms;
+
+  color-scheme: light;
+}
