@@ -111,3 +111,13 @@ def test_foreign_host_header_is_rejected_without_a_token(tmp_path):
     client, _ = _client(tmp_path)
     assert client.get("/api/status", headers={"host": "evil.example"}).status_code == 400
     assert client.get("/api/status").status_code == 200
+
+
+def test_service_worker_is_network_first_so_updates_are_never_stuck():
+    import re
+    from pathlib import Path
+    sw = (Path(__file__).resolve().parents[1] / "src" / "memeseeks" / "web" / "sw.js").read_text(encoding="utf-8")
+    handler = sw.split('addEventListener("fetch"', 1)[1]
+    assert re.search(r"respondWith\(\s*fetch\(event\.request\)", handler)  # network first
+    assert handler.index(".catch(") < handler.index("caches.match")         # cache only when offline
+    assert '"memeseeks-shell-v1"' not in sw                                 # new name drops the old cache

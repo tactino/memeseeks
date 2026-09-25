@@ -1,5 +1,7 @@
-// App shell only: the page loads offline-fast; API calls and images always go to the network.
-const SHELL = "memeseeks-shell-v1";
+// App shell only; API calls and images always go to the network.
+// Network first: a new version is picked up on the next load. The cache is only a fallback when
+// the server can't be reached, so an old app.js can never outlive a server update.
+const SHELL = "memeseeks-shell-v2";
 const FILES = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -14,13 +16,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
-  // Stale-while-revalidate: answer from cache, refresh it in the background.
-  event.respondWith(caches.open(SHELL).then(async (cache) => {
-    const cached = await cache.match(event.request, { ignoreSearch: true });
-    const fresh = fetch(event.request).then((res) => {
-      if (res.ok) cache.put(event.request, res.clone());
-      return res;
-    }).catch(() => cached);
-    return cached || fresh;
-  }));
+  event.respondWith(fetch(event.request).then((res) => {
+    if (res.ok) {
+      const copy = res.clone();
+      event.waitUntil(caches.open(SHELL).then((cache) => cache.put(event.request, copy)));
+    }
+    return res;
+  }).catch(() => caches.match(event.request, { ignoreSearch: true })));
 });
