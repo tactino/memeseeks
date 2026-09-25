@@ -6,7 +6,71 @@ How 迷因捕手 looks and moves. When changing the UI, change this file first, 
 ## Character
 
 A meme lover's treasury: a text search engine for memes and a pleasant place to read them, like a
-wallpaper site for memes.
+wallpaper site for memes. It is a personal meme collection, the way a music app is a personal music
+collection: memes are gathered into named collections (图集, like playlists) and can be browsed full
+screen one after another (刷梗, like listening). It runs on your own computer; nothing is shared with
+other people (a public, social side is out of scope for now).
+
+## Scope: clean feature groups, no filler
+
+Every feature and button must answer "why would someone press this?". If it cannot, it is not built.
+Options that only restate a default, or exist so a screen looks full, are left out.
+
+| group | what it does |
+|---|---|
+| 找 search | describe a meme in words; confident matches first, a folded 可能相关; optional web results in their own section |
+| 收 collect | the browser collector (采集 meme), uploading from the web app (drag and drop, or the phone's photo picker), watched folders, 待确认 for collected images that may be stickers |
+| 藏 keep | 全部, 我喜欢 and your own 图集: create, rename, delete, add and remove memes; remove a meme from the library |
+| 看 view | the meme page (text, source, the 图集 it is in, 喜欢 / 加入图集 / 复制 / 保存 / 分享, 相似的梗), 刷梗 full screen, 旧梗重温 on the home page |
+| 设置 settings | appearance, motion, web search, source folders, connecting the browser |
+
+相似梗 has no entry of its own: it is a row on the meme page (shown only when something is really
+similar) and it is what 刷梗 continues with when started from a meme.
+
+## Pages and navigation
+
+- **首页**: the search box, 今日一梗, your 图集 (covers, 我喜欢 first), 旧梗重温.
+- **搜索结果**, **图集** (also 全部 and 我喜欢: name, count, 刷梗 from here, sort 最新 / 最早, rename, delete),
+  **梗图** (the meme page), **刷梗** (full screen, over any page), **待确认**, **设置**.
+- Header: the logo (home), the search box, 图集, 刷梗, 待确认 (only when something waits, with its count),
+  设置. Phones: the search box on top and a bottom bar of 首页 / 图集 / 刷梗 / 设置.
+
+刷梗 order: from a 图集 (or 全部, 我喜欢) its own order, or shuffled; from a meme, the memes similar to it,
+then the rest shuffled; from the header, the memes not seen for longest. Swipe or arrow keys; 喜欢 and 加入
+图集 are one tap away; it remembers where you stopped.
+
+## Data
+
+Everything is in the library folder, as small JSON files written atomically, each with a `version`:
+
+| file | holds |
+|---|---|
+| `index/`, `library.json` | images (id = the first 16 hex digits of the file's SHA-256), text, vectors; source folders |
+| `provenance.jsonl`, `review.jsonl` | where collected memes came from; 待确认 decisions |
+| `collections.json` | the 图集: id, name, created, items (image id and when added) in order; `liked` (我喜欢) always exists |
+| `removed.json` | memes removed from the library. Files in your own folders are never deleted; they are only hidden. Collected ones are moved to `rejected/`. |
+| `settings.json` | the settings below, shared by every device that opens this library |
+| `seen.json` | when each meme was last shown (旧梗重温, 刷梗 order) |
+
+A 图集 holds image ids, not copies: a meme in five 图集 is stored once. Deleting a 图集 never deletes memes.
+
+## Settings
+
+Kept to what changes the experience; each has a sensible default.
+
+| setting | options (default first) |
+|---|---|
+| 主题 | 纸色 / 夜间 |
+| 蒙德里安边框 | 开 / 关 |
+| 开场动画 | 开 / 关 (it plays once per visit, not on every page) |
+| 动效 | 完整 / 减少 (the system's reduce-motion setting always wins) |
+| 网上搜索 | 关 / 开 (only when the server was started with a web source) |
+| 来源文件夹 | the watched folders: add, remove |
+| 连接浏览器 | install the collector |
+
+Where to put a new meme (the collector's target 图集) is chosen where it happens and remembered there,
+not in settings. For deeper changes, a `custom.css` in the library folder is loaded after the app's styles.
+The cat, the name and the logo are not customisable.
 
 - **Is:** a collector, dry humour, fond of sources and provenance.
 - **Is not:** flashy, childish, sticker-pack style.
