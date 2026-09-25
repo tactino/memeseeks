@@ -222,7 +222,7 @@ def test_run_indexes_then_serves(tmp_path, monkeypatch):
     import memeseeks.cli as cli
     from memeseeks.library import Library
     served = {}
-    monkeypatch.setattr(cli, "_serve", lambda lib, models, host, port, token: served.update(host=host, port=port) or 0)
+    monkeypatch.setattr(cli, "_serve", lambda lib, models, host, port, token, **kw: served.update(host=host, port=port) or 0)
     src = tmp_path / "memes"
     solid(src, "cat.png", (255, 0, 0))
     lib = tmp_path / "lib"
@@ -269,3 +269,24 @@ def test_search_without_confident_matches_says_so(tmp_path, capsys):
     assert main(["--lib", lib, "search", "一只鸟"], models=_models()) == 0
     out = capsys.readouterr().out
     assert "没有把握" in out and "cat.png" in out
+
+
+def test_online_search_needs_a_key(tmp_path, capsys, monkeypatch):
+    monkeypatch.delenv("MEMESEEKS_KLIPY_KEY", raising=False)
+    assert main(["--lib", str(tmp_path / "lib"), "serve", "--online", "klipy"], models=_models()) == 1
+    assert "MEMESEEKS_KLIPY_KEY" in capsys.readouterr().err
+
+
+def test_online_klipy_is_passed_to_the_app(tmp_path, monkeypatch):
+    import memeseeks.cli as cli
+    monkeypatch.setenv("MEMESEEKS_KLIPY_KEY", "k-123")
+    built = {}
+
+    def fake_run(app, **kw):
+        built["kw"] = kw
+
+    import uvicorn
+    monkeypatch.setattr(uvicorn, "run", fake_run)
+    monkeypatch.setattr(cli, "create_online", lambda name, key: built.update(online=(name, key)) or None)
+    assert main(["--lib", str(tmp_path / "lib"), "serve", "--online", "klipy"], models=_models()) == 0
+    assert built["online"] == ("klipy", "k-123")

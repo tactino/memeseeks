@@ -51,12 +51,28 @@ def _serve_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 to reach it from your phone (needs --token)")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--token", default=os.environ.get("MEMESEEKS_TOKEN"), help="access token (or $MEMESEEKS_TOKEN)")
+    p.add_argument("--online", choices=["off", "klipy"], default=os.environ.get("MEMESEEKS_ONLINE", "off"),
+                   help="also search the web (sends your search words to the provider); klipy needs $MEMESEEKS_KLIPY_KEY")
+
+
+def create_online(name: str, key: str):
+    from .online import KlipyMemes, OnlineService
+
+    if name == "klipy":
+        return OnlineService(KlipyMemes(key))
+    raise ValueError(name)
 
 
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 MIN_TOKEN_LENGTH = 16
 EXAMPLE_TOKENS = {"replace-with-a-long-random-string", "change-me"}
 _GENERATE = 'generate one with: python -c "import secrets; print(secrets.token_urlsafe(24))"'
+
+
+def _online_problem(online: str) -> str | None:
+    if online == "klipy" and not os.environ.get("MEMESEEKS_KLIPY_KEY"):
+        return "--online klipy needs an API key in MEMESEEKS_KLIPY_KEY (free: https://klipy.com/developers)"
+    return None
 
 
 def _exposure_problem(host: str, token: str | None) -> str | None:
@@ -70,8 +86,8 @@ def _exposure_problem(host: str, token: str | None) -> str | None:
     return None
 
 
-def _serve(lib: Library, models: Models, host: str, port: int, token: str | None) -> int:
-    problem = _exposure_problem(host, token)
+def _serve(lib: Library, models: Models, host: str, port: int, token: str | None, online: str = "off") -> int:
+    problem = _exposure_problem(host, token) or _online_problem(online)
     if problem:
         return _fail(problem)
     try:
@@ -93,7 +109,11 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
     if host in ("0.0.0.0", "::"):
         print("from your phone use this computer's LAN address instead of 127.0.0.1; over plain http "
               "only 保存 works there — copy and share need localhost or HTTPS")
-    uvicorn.run(create_app(service, token=token), host=host, port=port, log_level="warning")
+    online_service = None
+    if online != "off":
+        online_service = create_online(online, os.environ.get("MEMESEEKS_KLIPY_KEY", ""))
+        print(f"online search is on: your search words are also sent to {online}")
+    uvicorn.run(create_app(service, token=token, online=online_service), host=host, port=port, log_level="warning")
     return 0
 
 
@@ -169,10 +189,11 @@ def main(argv=None, models: Models | None = None) -> int:
         if args.cmd == "add":
             return _add(lib, models, args.folder, args.vlm, args.no_vlm, args.retry_failed)
         elif args.cmd == "run":
-            problem = _exposure_problem(args.host, args.token)  # before an hour of indexing, not after
+            problem = _exposure_problem(args.host, args.token) or _online_problem(args.online)  # before indexing
             if problem:
                 return _fail(problem)
-            return _add(lib, models, args.folder) or _serve(lib, models, args.host, args.port, args.token)
+            return _add(lib, models, args.folder) or _serve(lib, models, args.host, args.port, args.token,
+                                                              online=args.online)
         elif args.cmd == "search":
             matches, maybe = Searcher(lib, models).split_search(args.query, maybe_k=args.k)
             if args.json:
@@ -193,7 +214,7 @@ def main(argv=None, models: Models | None = None) -> int:
         elif args.cmd == "status":
             _status(lib, models)
         elif args.cmd == "serve":
-            return _serve(lib, models, args.host, args.port, args.token)
+            return _serve(lib, models, args.host, args.port, args.token, online=args.online)
         elif args.cmd == "eval":
             result = Searcher(lib, models).evaluate(args.csv)
             print(f"{result['n_queries']} labeled queries; {len(result['unlabeled'])} unlabeled: {result['unlabeled']}")

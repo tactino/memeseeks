@@ -245,3 +245,6 @@ button:focus-visible, a:focus-visible, .tile:focus-visible { outline: 3px solid 
   list-style-position: inside;
 }
 .maybe summary:focus-visible { outline: 3px solid var(--trap); outline-offset: 2px; }
+
+#online { margin-top: 28px; padding-top: 18px; border-top: 3px dashed color-mix(in srgb, var(--ink) 25%, transparent); }
+.source { color: var(--muted); font-size: 13px; }

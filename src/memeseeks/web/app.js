@@ -5,6 +5,7 @@ const els = {
   trap: $("trap"), q: $("q"), home: $("home"), homeGrid: $("home-grid"), shuffle: $("shuffle"),
   results: $("results"), resultsGrid: $("results-grid"), resultsTitle: $("results-title"), back: $("back"),
   maybe: $("maybe"), maybeTitle: $("maybe-title"), maybeGrid: $("maybe-grid"),
+  online: $("online"), onlineGrid: $("online-grid"), onlineSource: $("online-source"), onlineNotice: $("online-notice"),
   notice: $("notice"), viewer: $("viewer"), viewerImg: $("viewer-img"), viewerText: $("viewer-text"),
   copy: $("copy"), save: $("save"), share: $("share"), close: $("close"), toast: $("toast"),
 };
@@ -60,7 +61,30 @@ async function loadHome() {
   }
 }
 
+async function searchOnline(query) {
+  els.onlineGrid.replaceChildren();
+  els.onlineNotice.hidden = true;
+  try {
+    const res = await fetch(`/api/online?q=${encodeURIComponent(query)}`, { credentials: "same-origin" });
+    const body = await res.json().catch(() => ({}));
+    if (!body.enabled) { els.online.hidden = true; return; }
+    els.online.hidden = false;
+    els.onlineSource.textContent = body.provider ? `来自 ${body.provider}` : "";
+    if (!res.ok) throw new Error(body.error || `网上搜索失败（${res.status}）`);
+    const items = body.hits.map((h) => ({ ...h, text: h.title, relpath: `${h.id.replace(":", "-")}.jpg`, online: true }));
+    renderGrid(els.onlineGrid, items);
+    if (!items.length) {
+      els.onlineNotice.textContent = "网上也没找到。";
+      els.onlineNotice.hidden = false;
+    }
+  } catch (err) {
+    els.onlineNotice.textContent = err.message;
+    els.onlineNotice.hidden = false;
+  }
+}
+
 function showHome() {
+  els.online.hidden = true;
   els.results.hidden = true;
   els.home.hidden = false;
   notice("");
@@ -75,6 +99,7 @@ async function search(query) {
   els.maybe.hidden = true;
   notice("");
   try {
+    searchOnline(query);  // in parallel; its own section, only shown when online search is on
     const { matches, maybe } = await api(`/api/search?q=${encodeURIComponent(query)}`);
     els.trap.classList.remove("snap");
     void els.trap.offsetWidth;
@@ -99,7 +124,7 @@ function openViewer(item) {
   els.viewerImg.alt = item.text ? item.text.slice(0, 120) : "梗图";
   els.viewerText.textContent = item.text || "";
   els.viewerText.hidden = !item.text;
-  els.save.href = `${item.image}?download=1`;
+  els.save.href = `${item.image}${item.image.includes("?") ? "&" : "?"}download=1`;
   els.copy.hidden = !canCopyImages;
   els.share.hidden = !navigator.canShare;
   els.viewer.showModal();
