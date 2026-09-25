@@ -1,0 +1,13 @@
+{
+  "name": "无情的梗图诱捕器",
+  "short_name": "诱捕器",
+  "description": "描述你记得的那张梗图，把它从自己的图库里找出来。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFD21F",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

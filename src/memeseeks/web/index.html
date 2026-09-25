@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFD21F">
+<title>无情的梗图诱捕器</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="masthead">
+  <h1>无情的梗图诱捕器</h1>
+  <p class="motto">万梗归宗：找梗，也找梗的来处。</p>
+</header>
+
+<form class="trap" id="trap" role="search">
+  <label class="visually-hidden" for="q">描述你记得的那张梗图</label>
+  <input id="q" name="q" type="search" autocomplete="off" enterkeyhint="search"
+         placeholder="描述你记得的那张图，比如：关于熬夜的">
+  <button type="submit">搜</button>
+</form>
+
+<main>
+  <section id="home" aria-labelledby="home-title">
+    <div class="section-head">
+      <h2 id="home-title">旧梗重温</h2>
+      <button type="button" class="quiet" id="shuffle">换一批</button>
+    </div>
+    <div class="grid" id="home-grid"></div>
+  </section>
+
+  <section id="results" hidden aria-live="polite">
+    <div class="section-head">
+      <h2 id="results-title"></h2>
+      <button type="button" class="quiet" id="back">回到旧梗重温</button>
+    </div>
+    <div class="grid" id="results-grid"></div>
+  </section>
+
+  <p class="notice" id="notice" hidden></p>
+</main>
+
+<dialog class="viewer" id="viewer" aria-label="梗图详情">
+  <button type="button" class="close" id="close" aria-label="关闭">×</button>
+  <figure>
+    <img id="viewer-img" alt="">
+    <figcaption id="viewer-text"></figcaption>
+  </figure>
+  <div class="actions">
+    <button type="button" id="copy" hidden>复制</button>
+    <a id="save" class="button" download>保存</a>
+    <button type="button" id="share" hidden>分享</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

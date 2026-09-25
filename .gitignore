@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+/data/
+/runs/
+*.npy
+label.html
+.superpowers/
+.memeseeks-dev.env
+.env
+docs/superpowers/

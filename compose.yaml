@@ -1,0 +1,18 @@
+# docker compose up  — indexes $MEMES_DIR (read-only) and serves http://<this machine>:8765/?token=...
+services:
+  memeseeks:
+    build: .
+    image: memeseeks:local
+    ports:
+      - "8765:8765"
+    environment:
+      MEMESEEKS_TOKEN: ${MEMESEEKS_TOKEN:?set MEMESEEKS_TOKEN in .env (copy .env.example)}
+    volumes:
+      - ${MEMES_DIR:?set MEMES_DIR in .env (copy .env.example)}:/memes:ro
+      - library:/library   # index, thumbnails, 旧梗重温 history
+      - models:/models     # ~4 GB of models, downloaded on the first run
+    restart: unless-stopped
+
+volumes:
+  library: {}
+  models: {}

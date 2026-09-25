@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memeseeks"
+version = "0.2.0"
+description = "无情的梗图诱捕器 — find memes by what you mean, across languages."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = ["pillow>=10.1", "pillow-heif>=0.16", "numpy>=1.26", "pyyaml>=6"]
+
+[project.optional-dependencies]
+ml = [
+  "transformers>=4.51,<5",
+  "accelerate>=0.33",
+  "sentence-transformers>=3.0",
+  "rapidocr_onnxruntime==1.4.4",
+]
+serve = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest>=8", "httpx2", "fastapi>=0.110"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+memeseeks = ["web/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+markers = ["ml: needs model weights; run on the GPU box with MEMESEEKS_ML_TESTS=1"]
+
+[project.scripts]
+memeseeks = "memeseeks.cli:main"

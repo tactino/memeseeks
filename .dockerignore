@@ -1,0 +1,14 @@
+.git
+.venv
+.superpowers
+.pytest_cache
+**/__pycache__
+data
+runs
+docs
+experiments
+tests
+tools
+scripts
+.env
+.memeseeks-dev.env

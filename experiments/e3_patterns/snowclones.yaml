@@ -1,0 +1,73 @@
+# E3 dataset. Hand-written by Claude from widely known snowclones; not scraped.
+snowclones:
+  not_targeting_anyone:
+    - 我不是针对谁，我是说在座的各位都是垃圾
+    - 我不是针对谁，我是说在座的各位都是天才
+    - 我不是针对你，我是说在座的各位都是弟弟
+    - 我不是针对谁，我是说在座的各位都是单身狗
+    - 我不是针对哪一个人，我是说在座的各位都是戏精
+  yishi_shuang:
+    - 作死一时爽，一直作死一直爽
+    - 熬夜一时爽，一直熬夜一直爽
+    - 摸鱼一时爽，一直摸鱼一直爽
+    - 拖延一时爽，一直拖延一直爽
+    - 吃瓜一时爽，一直吃瓜一直爽
+  ren_shangren:
+    - 打工人打工魂，打工都是人上人
+    - 干饭人干饭魂，干饭都是人上人
+    - 考研人考研魂，考研都是人上人
+    - 尾款人尾款魂，尾款都是人上人
+    - 摸鱼人摸鱼魂，摸鱼都是人上人
+  jintou:
+    - 内卷的尽头是考公
+    - 学历的尽头是考公
+    - 打工的尽头是躺平
+    - 减肥的尽头是放弃
+    - 熬夜的尽头是秃头
+  cike:
+    - 雪糕刺客
+    - 水果刺客
+    - 奶茶刺客
+    - 盒饭刺客
+    - 咖啡刺客
+  youyizhong:
+    - 有一种冷叫做你妈觉得你冷
+    - 有一种饿叫做你奶奶觉得你饿
+    - 有一种穷叫做你爸觉得你乱花钱
+    - 有一种累叫做老板觉得你闲
+    - 有一种胖叫做你外婆觉得你瘦了
+  is_the_new:
+    - Orange is the new black
+    - 40 is the new 30
+    - Sitting is the new smoking
+    - Data is the new oil
+    - Brown is the new black
+  does_not_simply:
+    - One does not simply walk into Mordor
+    - One does not simply eat just one chip
+    - One does not simply push to production on Friday
+    - One does not simply finish a PhD in four years
+    - One does not simply ignore a cat at 5am
+  keep_calm:
+    - Keep calm and carry on
+    - Keep calm and drink tea
+    - Keep calm and code on
+    - Keep calm and call Batman
+    - Keep calm and study for finals
+  overlords:
+    - I, for one, welcome our new insect overlords
+    - I, for one, welcome our new robot overlords
+    - I, for one, welcome our new AI overlords
+    - I, for one, welcome our new cat overlords
+    - I, for one, welcome our new pigeon overlords
+distractors:
+  - 我不是故意的，我只是太困了
+  - 熬夜会让人变丑
+  - 世界上没有两片相同的叶子
+  - 雪糕太贵了，我买不起
+  - 考公的人越来越多了
+  - Keep your calm during the exam
+  - The new iPhone comes in orange
+  - I welcome everyone to the party
+  - Walking into the office on Monday is hard
+  - Data is stored in the cloud

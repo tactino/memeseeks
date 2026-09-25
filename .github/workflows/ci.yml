@@ -1,0 +1,79 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -q
+        env:
+          MEMESEEKS_PRIVATE_STRINGS: ${{ secrets.MEMESEEKS_PRIVATE_STRINGS }}
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t memeseeks:ci .
+      - run: docker run --rm memeseeks:ci --version
+      - name: refuses a weak token before doing any work
+        run: |
+          mkdir -p empty
+          ! docker run --rm -e MEMESEEKS_TOKEN=short -v "$PWD/empty:/memes:ro" memeseeks:ci
+      - name: smoke test the default command (empty meme folder, so no model download)
+        run: |
+          docker run -d --name ms -p 8765:8765 -e MEMESEEKS_TOKEN=ci-token-0123456789abcdef \
+            -v "$PWD/empty:/memes:ro" memeseeks:ci
+          for i in $(seq 1 60); do curl -fs -o /dev/null http://127.0.0.1:8765/ && break; sleep 1; done
+          curl -fs http://127.0.0.1:8765/ | grep -q "无情的梗图诱捕器"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/status)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer ci-token-0123456789abcdef' http://127.0.0.1:8765/api/status)" = 409
+      - name: container logs
+        if: always()
+        run: docker logs ms || true
+
+  e2e:
+    # Real models (~4 GB download), so only on demand: gh workflow run ci --ref main
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t memeseeks:ci .
+      - name: make three memes with text
+        run: |
+          mkdir -p memes
+          python3 -m pip install -q pillow
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+          font = ImageFont.load_default(size=48)
+          for name, text in [("coffee.png", "MONDAY COFFEE"), ("cat.png", "CAT ON KEYBOARD"), ("rain.png", "RAINY WEEKEND")]:
+              im = Image.new("RGB", (640, 240), "white")
+              ImageDraw.Draw(im).text((30, 90), text, fill="black", font=font)
+              im.save(f"memes/{name}")
+          PY
+      - name: index and search inside the container
+        run: |
+          docker run -d --name ms -p 8765:8765 -e MEMESEEKS_TOKEN=ci-token-0123456789abcdef -v "$PWD/memes:/memes:ro" memeseeks:ci
+          for i in $(seq 1 900); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer ci-token-0123456789abcdef' http://127.0.0.1:8765/api/status || true)
+            [ "$code" = 200 ] && break
+            sleep 2
+          done
+          curl -fs -H 'Authorization: Bearer ci-token-0123456789abcdef' "http://127.0.0.1:8765/api/search?q=keyboard%20cat&k=1" | tee hit.json
+          grep -q '"relpath":"cat.png"' hit.json
+      - name: container logs
+        if: always()
+        run: docker logs ms || true
