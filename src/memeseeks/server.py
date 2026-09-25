@@ -13,10 +13,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .albums import CollectionError
 from .inbox import MAX_IMAGE_BYTES, InboxError
 from .library import LibraryError
 from .review import ReviewError
 from .search import EmptyLibrary
+from .settings import SettingsError
 
 WEB = Path(__file__).parent / "web"
 USERSCRIPT = Path(__file__).parent / "browser" / "memeseeks.user.js"
@@ -26,6 +28,27 @@ MAX_INBOX_BODY = MAX_IMAGE_BYTES * 4 // 3 + 64 * 1024  # base64 image plus a lit
 # mimetypes misses some of these on Windows; Web Share rejects files typed application/octet-stream.
 IMAGE_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
                ".webp": "image/webp", ".bmp": "image/bmp", ".heic": "image/heic", ".heif": "image/heif"}
+
+
+async def _json_body(request: Request) -> dict:
+    """The body of a request that changes something. JSON only: a page on another site cannot send that
+    here (its CORS preflight is never granted), so it cannot change your library behind your back."""
+    if request.headers.get("content-type", "").split(";")[0].strip() != "application/json":
+        raise HTTPException(415, "send JSON")
+    try:
+        body = json.loads(await request.body())
+    except json.JSONDecodeError as exc:
+        raise HTTPException(400, f"bad request: {exc}") from exc
+    if not isinstance(body, dict):
+        raise HTTPException(400, "bad request: send an object")
+    return body
+
+
+def _ids(body: dict) -> list[str]:
+    ids = body.get("ids")
+    if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
+        raise HTTPException(400, "bad request: ids must be a list of strings")
+    return ids
 
 
 def _with_urls(items: list[dict]) -> list[dict]:
@@ -60,6 +83,15 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
             if request.url.path in ("/", "/index.html") and _matches(request.query_params.get("token")):
                 response.set_cookie(TOKEN_COOKIE, token, httponly=True, samesite="strict")
             return response
+
+    @app.exception_handler(CollectionError)
+    @app.exception_handler(SettingsError)
+    async def _bad_change(request: Request, exc: Exception):
+        return JSONResponse({"error": str(exc)}, status_code=404 if "no such" in str(exc) else 400)
+
+    @app.exception_handler(HTTPException)
+    async def _http_error(request: Request, exc: HTTPException):
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
 
     @app.exception_handler(EmptyLibrary)
     @app.exception_handler(LibraryError)
@@ -136,6 +168,86 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
         failed = [r for r in results.values() if r.startswith("error")]
         status = 400 if failed and len(failed) == len(results) else 200
         return JSONResponse({"results": results, "progress": service.review.progress()}, status_code=status)
+
+    # ---------------- 图集, the meme page, settings, upload ----------------
+    def _album_urls(a: dict) -> dict:
+        return dict(a, cover=f"/api/thumb/{a['cover']}" if a.get("cover") else None)
+
+    @app.get("/api/albums")
+    def albums():
+        return [_album_urls(a) for a in service.album_list()]
+
+    @app.post("/api/albums")
+    async def album_create(request: Request):
+        return service.albums.create((await _json_body(request)).get("name"))
+
+    @app.get("/api/albums/{cid}")
+    def album(cid: str, sort: str = Query("new", pattern="^(new|old)$")):
+        found = service.album(cid, sort=sort)
+        return dict(found, items=_with_urls(found["items"]))
+
+    @app.patch("/api/albums/{cid}")
+    async def album_rename(cid: str, request: Request):
+        return service.albums.rename(cid, (await _json_body(request)).get("name"))
+
+    @app.delete("/api/albums/{cid}")
+    def album_delete(cid: str):
+        service.albums.delete(cid)
+        return {"deleted": cid}
+
+    @app.post("/api/albums/{cid}/add")
+    async def album_add(cid: str, request: Request):
+        ids = _ids(await _json_body(request))
+        known = set(service.library.paths())
+        return {"added": service.albums.add(cid, [i for i in ids if i in known])}
+
+    @app.post("/api/albums/{cid}/remove")
+    async def album_remove(cid: str, request: Request):
+        return {"removed": service.albums.remove(cid, _ids(await _json_body(request)))}
+
+    @app.get("/api/meme/{image_id}")
+    def meme(image_id: str):
+        found = service.meme(image_id)
+        if found is None:
+            raise HTTPException(404, "no such meme")
+        return dict(_with_urls([found])[0], similar=_with_urls(found["similar"]))
+
+    @app.post("/api/memes/remove")
+    async def memes_remove(request: Request):
+        removed = service.remove_memes(_ids(await _json_body(request)))
+        if indexer is not None:
+            indexer.request()  # collected files moved to rejected/
+        return {"removed": removed}
+
+    @app.get("/api/settings")
+    def settings_get():
+        return service.settings.get()
+
+    @app.put("/api/settings")
+    async def settings_put(request: Request):
+        return service.settings.update(await _json_body(request))
+
+    if inbox is not None:
+        @app.post("/api/upload")
+        async def upload(request: Request, album: str | None = None):
+            # an image body only (image/*): like JSON, a page on another site cannot send that here
+            ctype = request.headers.get("content-type", "").split(";")[0].strip()
+            if not ctype.startswith("image/"):
+                raise HTTPException(415, "send the image itself (image/*)")
+            if int(request.headers.get("content-length") or 0) > MAX_IMAGE_BYTES:
+                raise HTTPException(413, "image too large")
+            if album is not None:
+                service.albums.get(album)  # 404 before storing anything
+            try:
+                found = inbox.receive(await request.body(), {"site": "上传"})
+            except InboxError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            service.review.mark_kept([found["id"]])  # you chose it: no 待确认
+            if album is not None:
+                service.albums.add(album, [found["id"]])
+            if found["status"] == "added" and indexer is not None:
+                indexer.request()
+            return found
 
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):

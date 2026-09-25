@@ -9,11 +9,13 @@ import threading
 import time
 from pathlib import Path
 
+from .albums import LIKED, CollectionError, Collections, Removed
 from .images import load_image
 from .inbox import PROVENANCE_FILE, read_provenance
 from .review import Review
 from .index import _atomic_write_text, _tmp_for
 from .search import Searcher
+from .settings import Settings
 
 THUMB_QUALITY = 82
 # Everything a Searcher reads: if any of these changed, rebuild it (an add writes them over minutes).
@@ -35,6 +37,9 @@ class LibraryService:
         self._seen_lock = threading.Lock()
         self._provenance, self._provenance_stamp = {}, None
         self.review = Review(library)
+        self.albums = Collections(library.root, clock=clock)
+        self.removed = Removed(library.root)
+        self.settings = Settings(library.root)
 
     def _index_stamp(self):
         stamps = []
@@ -75,7 +80,89 @@ class LibraryService:
         return item
 
     def _hidden(self, s: Searcher) -> set[str]:
-        return self.review.hidden(s.paths, s.text)
+        """Not shown anywhere: waiting in 待确认, rejected there, or removed from the library."""
+        return self.review.hidden(s.paths, s.text) | self.removed.ids()
+
+    def visible(self, s: Searcher | None = None) -> list[str]:
+        s = s or self.searcher()
+        hidden = self._hidden(s)
+        return [i for i in s.ids if i not in hidden]
+
+    def added_at(self, image_id: str, s: Searcher | None = None) -> float:
+        """When a meme came in: when it was collected, else the file's modification time."""
+        collected = self._collected_at(image_id)
+        if collected:
+            return collected
+        try:
+            return os.stat((s or self.searcher()).paths[image_id]).st_mtime
+        except (OSError, KeyError):
+            return 0.0
+
+    # ---------- 相似的梗 and the meme page ----------
+
+    def similar(self, image_id: str, k: int = 12) -> list[dict]:
+        s = self.searcher()
+        hidden = self._hidden(s)
+        found = [(i, sc) for i, sc in s.similar(image_id) if i not in hidden][:k]
+        return [self._item(s, i, score=sc) for i, sc in found]
+
+    def meme(self, image_id: str) -> dict | None:
+        s = self.searcher()
+        if image_id not in s.paths or image_id in self._hidden(s):
+            return None
+        item = self._item(s, image_id)
+        item["sources"] = [{k: src[k] for k in ("site", "page_url", "page_title", "at") if k in src}
+                           for src in self.sources().get(image_id, [])]
+        item["albums"] = self.albums.containing(image_id)
+        item["liked"] = LIKED in item["albums"]
+        item["added"] = self.added_at(image_id, s)
+        item["similar"] = self.similar(image_id)
+        return item
+
+    # ---------- 图集 ----------
+
+    def album_list(self) -> list[dict]:
+        """全部, 我喜欢 and your 图集, each with its count and cover (the newest meme in it)."""
+        s = self.searcher()
+        visible = self.visible(s)
+        shown = set(visible)
+        newest = max(visible, key=lambda i: self.added_at(i, s), default=None)
+        out = [{"id": "all", "name": "全部", "count": len(visible), "cover": newest, "created": 0}]
+        for a in self.albums.all():
+            items = [it["id"] for it in a["items"] if it["id"] in shown]
+            out.append({"id": a["id"], "name": a["name"], "count": len(items),
+                        "cover": items[-1] if items else None, "created": a["created"]})
+        return out
+
+    def album(self, cid: str, sort: str = "new") -> dict:
+        s = self.searcher()
+        shown = set(self.visible(s))
+        if cid == "all":
+            name = "全部"
+            ids = sorted(shown, key=lambda i: (self.added_at(i, s), i))       # oldest first, like a 图集
+        else:
+            a = self.albums.get(cid)
+            name, ids = a["name"], [it["id"] for it in a["items"] if it["id"] in shown]
+        if sort == "new":
+            ids = ids[::-1]
+        return {"id": cid, "name": name, "count": len(ids), "items": [self._item(s, i) for i in ids]}
+
+    def remove_memes(self, image_ids: list[str]) -> int:
+        """Take memes out of the library. Collected ones move to rejected/; your own files are only hidden."""
+        paths = self.library.paths()
+        own = []
+        for i in image_ids:
+            p = paths.get(i)
+            if p and Path(p).is_file() and self.review.in_inbox(p):
+                dest = self.library.root / "rejected"
+                dest.mkdir(parents=True, exist_ok=True)
+                Path(p).replace(dest / Path(p).name)
+            elif p:
+                own.append(i)
+        self.removed.add(own)
+        known = [i for i in image_ids if i in paths]
+        self.albums.forget(known)
+        return len(known)
 
     def search(self, query: str, maybe_k: int = 12) -> dict:
         """Confident matches first; `maybe` holds a few more candidates for when nothing is certain."""
@@ -142,5 +229,5 @@ class LibraryService:
 
     def status(self) -> dict:
         s = self.searcher()
-        return {"images": len(s.ids), "with_text": len(s.text), "vlm": bool(self.library.config()["vlm"]),
+        return {"images": len(self.visible(s)), "with_text": len(s.text), "vlm": bool(self.library.config()["vlm"]),
                 "pending_review": len(self.review.pending(s.paths, s.text))}

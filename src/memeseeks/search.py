@@ -22,6 +22,13 @@ class EmptyLibrary(Exception):
 # The CLIP route barely separates them (0.36 vs 0.32), so it only orders results, never qualifies one.
 MATCH_THRESHOLD = 0.55
 
+# 相似的梗: another meme counts as similar when its text vector is this close (cosine), or its image is.
+# On the maintainer's 109 memes: 0.95 is the same meme twice, 0.73-0.74 are memes on the same theme
+# ("a song from childhood comes on"), and around 0.70 unrelated memes that only share a layout or a
+# watermark creep in. CLIP scores of different memes reach 0.88 easily; only the same template passes 0.93.
+SIMILAR_TEXT = 0.72
+SIMILAR_IMAGE = 0.93
+
 
 @dataclass
 class Hit:
@@ -76,6 +83,23 @@ class Searcher:
             q = self.models.get("clip").embed_texts([query])[0]
             out["clip"] = rank_route(q, self.clip_ids, self.clip, self.ids)
         return out, best_text
+
+    def similar(self, image_id: str) -> list[tuple[str, float]]:
+        """Memes like this one, best first: (id, score); score is on the text scale (see SIMILAR_TEXT)."""
+        best: dict[str, float] = {}
+        if "ocr" in self.text_vecs:
+            ids, vecs = self.text_vecs["ocr"]
+            if image_id in ids:
+                for j, sim in zip(ids, (vecs @ vecs[ids.index(image_id)]).tolist()):
+                    if sim >= SIMILAR_TEXT:
+                        best[j] = max(best.get(j, -1.0), sim)
+        if image_id in self.clip_ids:
+            shift = SIMILAR_IMAGE - SIMILAR_TEXT  # put an image match on the same scale as a text match
+            for j, sim in zip(self.clip_ids, (self.clip @ self.clip[self.clip_ids.index(image_id)]).tolist()):
+                if sim >= SIMILAR_IMAGE:
+                    best[j] = max(best.get(j, -1.0), sim - shift)
+        best.pop(image_id, None)
+        return sorted(best.items(), key=lambda kv: (-kv[1], kv[0]))
 
     def rankings(self, query: str) -> dict[str, list[str]]:
         return self._scored(query)[0]

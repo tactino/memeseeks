@@ -102,6 +102,13 @@ class Review:
 
     # ---------- deciding ----------
 
+    def mark_kept(self, image_ids: list[str]) -> None:
+        """Memes you chose yourself (uploads): never held back in 待确认."""
+        with self._lock:
+            with (self.library.root / LOG_FILE).open("a", encoding="utf-8") as f:
+                for image_id in image_ids:
+                    f.write(json.dumps({"id": image_id, "decision": "keep", "at": self.clock()}) + "\n")
+
     def decide(self, image_id: str, decision: str, paths: dict[str, str]) -> str:
         """Record 要 ("keep") or 不要 ("reject"); a reject can be undone by a later keep."""
         if decision not in ("keep", "reject"):
