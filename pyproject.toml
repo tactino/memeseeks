@@ -19,7 +19,7 @@ ml = [
   "rapidocr_onnxruntime==1.4.4",
 ]
 serve = ["fastapi>=0.110", "uvicorn>=0.29"]
-dev = ["pytest>=8", "httpx2", "fastapi>=0.110"]
+dev = ["pytest>=8", "httpx2", "fastapi>=0.110", "uvicorn>=0.29"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
