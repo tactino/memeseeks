@@ -16,9 +16,9 @@ def test_add_then_search_prints_ranked_paths(tmp_path, capsys):
     lib = str(tmp_path / "lib")
     assert main(["--lib", lib, "add", str(src)], models=_models()) == 0
     capsys.readouterr()
-    assert main(["--lib", lib, "search", "狗", "-k", "1", "--json"], models=_models()) == 0
+    assert main(["--lib", lib, "search", "狗", "--json"], models=_models()) == 0
     out = json.loads(capsys.readouterr().out)
-    assert len(out) == 1 and out[0]["path"].endswith("dog.png")
+    assert [h["path"][-7:] for h in out["matches"]] == ["dog.png"] and len(out["maybe"]) == 1
 
 
 def test_search_before_add_is_a_clear_error(tmp_path, capsys):
@@ -150,8 +150,8 @@ def test_failed_images_are_reported_and_can_be_retried(tmp_path, capsys):
     SometimesOcr.broken = False
     assert main(["--lib", lib, "add", str(src), "--retry-failed"], models=models) == 0
     capsys.readouterr()
-    main(["--lib", lib, "search", "狗", "-k", "1", "--json"], models=models)
-    assert json.loads(capsys.readouterr().out)[0]["text"] == "狗狗"
+    main(["--lib", lib, "search", "狗", "--json"], models=models)
+    assert json.loads(capsys.readouterr().out)["matches"][0]["text"] == "狗狗"
 
 
 def test_missing_csv_and_broken_library_json_are_clear_errors(tmp_path, capsys):
@@ -258,3 +258,14 @@ def test_add_of_an_empty_folder_loads_no_models(tmp_path, capsys):
     empty.mkdir()
     assert main(["--lib", str(tmp_path / "lib"), "add", str(empty)], models=NoModels()) == 0
     assert "no images found" in capsys.readouterr().out
+
+
+def test_search_without_confident_matches_says_so(tmp_path, capsys):
+    src = tmp_path / "memes"
+    solid(src, "cat.png", (255, 0, 0))
+    lib = str(tmp_path / "lib")
+    main(["--lib", lib, "add", str(src)], models=_models())
+    capsys.readouterr()
+    assert main(["--lib", lib, "search", "一只鸟"], models=_models()) == 0
+    out = capsys.readouterr().out
+    assert "没有把握" in out and "cat.png" in out

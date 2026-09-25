@@ -57,8 +57,9 @@ def create_app(service, token: str | None = None) -> FastAPI:
         return JSONResponse({"error": str(exc)}, status_code=409)
 
     @app.get("/api/search")
-    def search(q: str = Query(..., min_length=1), k: int = Query(30, ge=1, le=200)):
-        return _with_urls(service.search(q, k=k))
+    def search(q: str = Query(..., min_length=1), maybe: int = Query(12, ge=0, le=60)):
+        found = service.search(q, maybe_k=maybe)
+        return {"matches": _with_urls(found["matches"]), "maybe": _with_urls(found["maybe"])}
 
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):

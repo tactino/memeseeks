@@ -53,12 +53,15 @@ class LibraryService:
         """Load the index and the query-side models now, so the first search is as fast as the rest."""
         self.searcher().search("warm up", k=1)
 
-    def _item(self, s: Searcher, i: str, score: float | None = None) -> dict:
-        return {"id": i, "score": score, "text": s.text.get(i, ""), "relpath": s.relpath[i]}
+    def _item(self, s: Searcher, i: str, score: float | None = None, match: float | None = None) -> dict:
+        return {"id": i, "score": score, "match": match, "text": s.text.get(i, ""), "relpath": s.relpath[i]}
 
-    def search(self, query: str, k: int = 30) -> list[dict]:
+    def search(self, query: str, maybe_k: int = 12) -> dict:
+        """Confident matches first; `maybe` holds a few more candidates for when nothing is certain."""
         s = self.searcher()
-        return [self._item(s, h.id, h.score) for h in s.search(query, k=k)]
+        matches, maybe = s.split_search(query, maybe_k=maybe_k)
+        return {"matches": [self._item(s, h.id, h.score, h.match) for h in matches],
+                "maybe": [self._item(s, h.id, h.score, h.match) for h in maybe]}
 
     def path(self, image_id: str) -> Path | None:
         """Only ids the library knows, and only if the file still exists: never a client-supplied path."""

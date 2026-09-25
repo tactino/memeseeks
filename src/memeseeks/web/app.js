@@ -4,6 +4,7 @@ const $ = (id) => document.getElementById(id);
 const els = {
   trap: $("trap"), q: $("q"), home: $("home"), homeGrid: $("home-grid"), shuffle: $("shuffle"),
   results: $("results"), resultsGrid: $("results-grid"), resultsTitle: $("results-title"), back: $("back"),
+  maybe: $("maybe"), maybeTitle: $("maybe-title"), maybeGrid: $("maybe-grid"),
   notice: $("notice"), viewer: $("viewer"), viewerImg: $("viewer-img"), viewerText: $("viewer-text"),
   copy: $("copy"), save: $("save"), share: $("share"), close: $("close"), toast: $("toast"),
 };
@@ -71,15 +72,20 @@ async function search(query) {
   els.results.hidden = false;
   els.resultsTitle.textContent = "正在诱捕…";
   els.resultsGrid.replaceChildren();
+  els.maybe.hidden = true;
   notice("");
   try {
-    const items = await api(`/api/search?k=30&q=${encodeURIComponent(query)}`);
+    const { matches, maybe } = await api(`/api/search?q=${encodeURIComponent(query)}`);
     els.trap.classList.remove("snap");
     void els.trap.offsetWidth;
     els.trap.classList.add("snap");
-    els.resultsTitle.textContent = items.length ? `诱捕到 ${items.length} 张` : "没找到";
-    renderGrid(els.resultsGrid, items);
-    if (!items.length) notice("换个说法试试，或者直接写图里的字。");
+    els.resultsTitle.textContent = matches.length ? `诱捕到 ${matches.length} 张` : "没有把握的结果";
+    renderGrid(els.resultsGrid, matches);
+    renderGrid(els.maybeGrid, maybe);
+    els.maybeTitle.textContent = `可能相关（${maybe.length}）`;
+    els.maybe.hidden = !maybe.length;
+    els.maybe.open = !matches.length;
+    if (!matches.length) notice("换个说法试试，或者直接写图里的字。下面是沾点边的：");
     history.replaceState(null, "", `?q=${encodeURIComponent(query)}`);
   } catch (err) {
     els.resultsTitle.textContent = "出错了";

@@ -235,3 +235,13 @@ button:focus-visible, a:focus-visible, .tile:focus-visible { outline: 3px solid 
 @media (prefers-reduced-motion: reduce) {
   .trap.snap { animation: none; }
 }
+
+.maybe { margin-top: 18px; }
+.maybe summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 12px;
+  list-style-position: inside;
+}
+.maybe summary:focus-visible { outline: 3px solid var(--trap); outline-offset: 2px; }

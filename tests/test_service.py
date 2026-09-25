@@ -39,10 +39,10 @@ def test_rediscover_cycles_through_the_library(tmp_path):
 
 def test_search_picks_up_a_new_add_without_restart(tmp_path):
     svc, lib, models, src = _service(tmp_path, {"cat.png": (255, 0, 0)})
-    assert [m["relpath"] for m in svc.search("狗", k=5)] == ["cat.png"]
+    assert svc.search("狗")["matches"] == [] and [m["relpath"] for m in svc.search("狗")["maybe"]] == ["cat.png"]
     solid(src, "dog.png", (0, 0, 255))
     lib.update(models, log=lambda m: None)
-    assert svc.search("狗", k=1)[0]["relpath"] == "dog.png"
+    assert svc.search("狗")["matches"][0]["relpath"] == "dog.png"
 
 
 def test_path_and_thumbnail_only_for_known_existing_ids(tmp_path):
@@ -58,7 +58,7 @@ def test_path_and_thumbnail_only_for_known_existing_ids(tmp_path):
 def test_empty_library_search_raises(tmp_path):
     svc = LibraryService(Library(tmp_path / "none"), Models(bge=FakeBge(), clip=FakeClip()))
     with pytest.raises(EmptyLibrary):
-        svc.search("猫", k=3)
+        svc.search("猫")
 
 
 def test_warm_loads_the_query_models_up_front(tmp_path):
@@ -78,18 +78,17 @@ def test_warm_loads_the_query_models_up_front(tmp_path):
 def test_a_search_during_add_does_not_leave_the_server_stale(tmp_path, monkeypatch):
     import memeseeks.library as library_module
     svc, lib, models, src = _service(tmp_path, {"cat.png": (255, 0, 0)})
-    svc.search("猫", k=1)
+    svc.search("猫")
     solid(src, "dog.png", (0, 0, 255))
     real_build = library_module.build_index
 
     def build_with_a_request_in_the_middle(*args, **kwargs):
-        svc.search("狗", k=1)  # a phone asks while paths.json is new but vectors are not
+        svc.search("狗")  # a phone asks while paths.json is new but vectors are not
         return real_build(*args, **kwargs)
 
     monkeypatch.setattr(library_module, "build_index", build_with_a_request_in_the_middle)
     lib.update(models, log=lambda m: None)
-    hit = svc.search("狗", k=1)[0]
-    assert hit["relpath"] == "dog.png"
+    assert svc.search("狗")["matches"][0]["relpath"] == "dog.png"
 
 
 def test_concurrent_rediscover_and_thumbnails_do_not_fail(tmp_path):

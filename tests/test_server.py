@@ -23,8 +23,10 @@ def _client(tmp_path, token=None, index=True):
 
 def test_search_returns_hits_with_image_urls(tmp_path):
     client, _ = _client(tmp_path)
-    hits = client.get("/api/search", params={"q": "狗", "k": 1}).json()
-    assert hits[0]["relpath"] == "dog.png" and hits[0]["thumb"].startswith("/api/thumb/")
+    body = client.get("/api/search", params={"q": "狗"}).json()
+    hits = body["matches"]
+    assert [h["relpath"] for h in hits] == ["dog.png"] and hits[0]["thumb"].startswith("/api/thumb/")
+    assert [h["relpath"] for h in body["maybe"]] == ["cat.png"]
     img = client.get(hits[0]["image"])
     assert img.status_code == 200 and img.headers["content-type"].startswith("image/")
 

@@ -16,6 +16,13 @@ class EmptyLibrary(Exception):
     pass
 
 
+# Text-route cosine (query vs the meme's OCR text or VLM description) needed to call a hit a match.
+# On the maintainer's 25 labeled queries the right meme scored 0.76 on average (min 0.51) and the best
+# wrong one 0.53: at 0.55 the right meme is kept for 96% of queries and wrong ones pass for 24%.
+# The CLIP route barely separates them (0.36 vs 0.32), so it only orders results, never qualifies one.
+MATCH_THRESHOLD = 0.55
+
+
 @dataclass
 class Hit:
     id: str
@@ -23,6 +30,7 @@ class Hit:
     relpath: str
     score: float
     text: str
+    match: float | None = None  # best text-route similarity, None when the meme has no text
 
 
 def rank_route(query_vec, route_ids: list[str], route_vecs: np.ndarray, all_ids: list[str]) -> list[str]:
@@ -55,29 +63,55 @@ class Searcher:
         if not self.clip_ids and not self.text_vecs:
             raise EmptyLibrary("no images are indexed yet: run `memeseeks add <folder>` (it resumes where it stopped)")
 
-    def rankings(self, query: str) -> dict[str, list[str]]:
-        out = {}
+    def _scored(self, query: str) -> tuple[dict[str, list[str]], dict[str, float]]:
+        """Per-route rankings, plus each meme's best text-route similarity."""
+        out, best_text = {}, {}
         if self.text_vecs:
             q = self.models.get("bge").embed([query])[0]
             for route, (ids, vecs) in self.text_vecs.items():
                 out[route] = rank_route(q, ids, vecs, self.ids)
+                for i, sim in zip(ids, (vecs @ q).tolist()):
+                    best_text[i] = max(best_text.get(i, -1.0), sim)
         if self.clip_ids:
             q = self.models.get("clip").embed_texts([query])[0]
             out["clip"] = rank_route(q, self.clip_ids, self.clip, self.ids)
-        return out
+        return out, best_text
+
+    def rankings(self, query: str) -> dict[str, list[str]]:
+        return self._scored(query)[0]
+
+    def _fused(self, query: str) -> tuple[list[Hit], dict[str, float]]:
+        rankings, best_text = self._scored(query)
+        scores = rrf_scores(list(rankings.values()))
+        order = sorted(scores, key=lambda i: (-scores[i], i))
+        hits = [Hit(i, self.paths[i], self.relpath[i], scores[i], self.text.get(i, ""), best_text.get(i))
+                for i in order]
+        return hits, best_text
 
     def search(self, query: str, k: int = 10) -> list[Hit]:
-        scores = rrf_scores(list(self.rankings(query).values()))
-        order = sorted(scores, key=lambda i: (-scores[i], i))[:k]
-        return [Hit(i, self.paths[i], self.relpath[i], scores[i], self.text.get(i, "")) for i in order]
+        return self._fused(query)[0][:k]
+
+    def split_search(self, query: str, maybe_k: int = 12) -> tuple[list[Hit], list[Hit]]:
+        """Confident matches (text similarity >= MATCH_THRESHOLD), then a few best-ranked others."""
+        hits, _ = self._fused(query)
+        matches = [h for h in hits if h.match is not None and h.match >= MATCH_THRESHOLD]
+        chosen = {h.id for h in matches}
+        return matches, [h for h in hits if h.id not in chosen][:maybe_k]
 
     def evaluate(self, qrels_csv) -> dict:
         qrels = load_qrels(qrels_csv, self.relpath.values())
         by_method: dict[str, dict[str, list[str]]] = {}
+        found, filler = 0, 0
         for q in qrels.queries:
             ranked = self.rankings(q.text)
             ranked["hybrid"] = [h.id for h in self.search(q.text, k=len(self.ids))]
             for method, ids in ranked.items():
                 by_method.setdefault(method, {})[q.text] = [self.relpath[i] for i in ids]
-        return {"n_queries": len(qrels.queries), "unlabeled": qrels.unlabeled, "unknown_files": qrels.unknown_files,
-                "scores": score_methods(by_method, qrels.queries) if qrels.queries else {}}
+            matches, _ = self.split_search(q.text, maybe_k=0)
+            shown = {self.relpath[h.id] for h in matches}
+            found += bool(shown & q.relevant)
+            filler += len(shown - q.relevant)
+        n = len(qrels.queries)
+        split = {"match_recall": found / n, "filler_per_query": filler / n} if n else {}
+        return {"n_queries": n, "unlabeled": qrels.unlabeled, "unknown_files": qrels.unknown_files,
+                "scores": score_methods(by_method, qrels.queries) if qrels.queries else {}, "split": split}

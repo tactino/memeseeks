@@ -88,3 +88,24 @@ def test_failed_vlm_description_ranks_last_on_the_vlm_route(tmp_path):
     searcher = Searcher(lib, models)
     ranked = [searcher.relpath[i] for i in searcher.rankings("狗")["vlm"]]
     assert ranked[0] == "cat.png" and set(ranked[1:]) == {"dog.png", "grey.png"}  # failed/none trail
+
+
+def test_split_search_shows_only_confident_matches(tmp_path):
+    lib, models, _ = _lib(tmp_path, {"cat.png": (255, 0, 0), "dog.png": (0, 0, 255), "grey.png": (90, 90, 90)})
+    matches, maybe = Searcher(lib, models).split_search("猫", maybe_k=5)
+    assert [h.relpath for h in matches] == ["cat.png"]
+    assert {h.relpath for h in maybe} == {"dog.png", "grey.png"} and matches[0].match > 0.9
+
+
+def test_split_search_with_nothing_confident_offers_only_maybe(tmp_path):
+    lib, models, _ = _lib(tmp_path, {"cat.png": (255, 0, 0), "dog.png": (0, 0, 255)})
+    matches, maybe = Searcher(lib, models).split_search("一只鸟", maybe_k=1)
+    assert matches == [] and len(maybe) == 1
+
+
+def test_evaluate_reports_match_recall_and_filler(tmp_path):
+    lib, models, _ = _lib(tmp_path, {"cat.png": (255, 0, 0), "dog.png": (0, 0, 255)})
+    csv_path = tmp_path / "q.csv"
+    csv_path.write_text("q,f\n猫,cat.png\n狗,dog.png\n", encoding="utf-8")
+    split = Searcher(lib, models).evaluate(csv_path)["split"]
+    assert split == {"match_recall": 1.0, "filler_per_query": 0.0}

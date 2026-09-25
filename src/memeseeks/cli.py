@@ -34,7 +34,7 @@ def _parser() -> argparse.ArgumentParser:
     a.add_argument("--retry-failed", action="store_true", help="redo images that failed a step last time")
     s = sub.add_parser("search", help="search the library")
     s.add_argument("query")
-    s.add_argument("-k", type=_positive, default=10)
+    s.add_argument("-k", type=_positive, default=10, help="how many less certain candidates to list")
     s.add_argument("--json", action="store_true")
     sub.add_parser("status", help="show what is in the library")
     e = sub.add_parser("eval", help="score a queries.csv (query,expected files)")
@@ -174,13 +174,22 @@ def main(argv=None, models: Models | None = None) -> int:
                 return _fail(problem)
             return _add(lib, models, args.folder) or _serve(lib, models, args.host, args.port, args.token)
         elif args.cmd == "search":
-            hits = Searcher(lib, models).search(args.query, k=args.k)
+            matches, maybe = Searcher(lib, models).split_search(args.query, maybe_k=args.k)
             if args.json:
-                print(json.dumps([h.__dict__ for h in hits], ensure_ascii=False, indent=2))
+                print(json.dumps({"matches": [h.__dict__ for h in matches], "maybe": [h.__dict__ for h in maybe]},
+                                 ensure_ascii=False, indent=2))
             else:
-                for n, h in enumerate(hits, 1):
-                    snippet = h.text.replace("\n", " ")[:30]
-                    print(f"{n:>2}. {h.path}" + (f"  「{snippet}」" if snippet else ""))
+                def show(hits):
+                    for n, h in enumerate(hits, 1):
+                        snippet = h.text.replace("\n", " ")[:30]
+                        print(f"{n:>2}. {h.path}" + (f"  「{snippet}」" if snippet else ""))
+                if matches:
+                    show(matches)
+                    if maybe:
+                        print(f"（另有 {len(maybe)} 张可能相关，用 --json 查看）")
+                else:
+                    print("没有把握的结果。可能相关：")
+                    show(maybe)
         elif args.cmd == "status":
             _status(lib, models)
         elif args.cmd == "serve":
@@ -193,6 +202,10 @@ def main(argv=None, models: Models | None = None) -> int:
             print("| route | R@1 | R@5 | MRR |\n|---|---|---|---|")
             for m, s in result["scores"].items():
                 print(f"| {m} | {s['recall@1']:.2f} | {s['recall@5']:.2f} | {s['mrr']:.2f} |")
+            if result.get("split"):
+                sp = result["split"]
+                print(f"confident matches: right meme shown for {sp['match_recall']:.0%} of queries, "
+                      f"{sp['filler_per_query']:.2f} wrong ones per query")
     except (EmptyLibrary, LibraryError) as exc:
         return _fail(str(exc))
     except OSError as exc:  # e.g. a CSV path that does not exist
