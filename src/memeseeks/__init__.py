@@ -1,3 +1,3 @@
-"""memeseeks — 无情的梗图诱捕器."""
+"""memeseeks — 迷因捕手."""
 
 __version__ = "0.2.0"

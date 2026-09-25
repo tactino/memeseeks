@@ -6,12 +6,11 @@ import hmac
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .library import LibraryError
-from .online import OnlineError
 from .search import EmptyLibrary
 
 WEB = Path(__file__).parent / "web"
@@ -62,33 +61,10 @@ def create_app(service, token: str | None = None, online=None) -> FastAPI:
         found = service.search(q, maybe_k=maybe)
         return {"matches": _with_urls(found["matches"]), "maybe": _with_urls(found["maybe"])}
 
-    @app.get("/api/online")
-    def online_search(q: str = Query(..., min_length=1), n: int = Query(20, ge=1, le=50)):
-        if online is None:
-            return {"enabled": False, "hits": []}
-        try:
-            hits = online.search(q, n=n)
-        except OnlineError as exc:
-            return JSONResponse({"enabled": True, "provider": online.provider, "error": str(exc)}, status_code=502)
-        return {"enabled": True, "provider": online.provider,
-                "hits": [{"id": h.id, "title": h.title, "provider": h.provider,
-                          "thumb": f"/api/online/img/{h.id}?v=thumb", "image": f"/api/online/img/{h.id}?v=full"}
-                         for h in hits]}
-
-    @app.get("/api/online/img/{hit_id}")
-    def online_image(hit_id: str, v: str = Query("thumb", pattern="^(thumb|full)$"), download: int = 0):
-        try:
-            found = online.image(hit_id, v) if online is not None else None
-        except OnlineError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=502)
-        if found is None:
-            raise HTTPException(404)
-        data, ctype = found
-        headers = {"Cache-Control": "max-age=3600"}
-        if download:
-            ext = {"image/png": "png", "image/gif": "gif", "image/webp": "webp"}.get(ctype, "jpg")
-            headers["Content-Disposition"] = f'attachment; filename="{hit_id.replace(":", "-")}.{ext}"'
-        return Response(data, media_type=ctype, headers=headers)
+    @app.get("/api/online/config")
+    def online_config():
+        # Settings only: the page asks the provider itself and shows its images from there.
+        return online.as_json() if online is not None else {"enabled": False}
 
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):

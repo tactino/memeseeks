@@ -37,7 +37,7 @@ jobs:
           docker run -d --name ms -p 8765:8765 -e MEMESEEKS_TOKEN=ci-token-0123456789abcdef \
             -v "$PWD/empty:/memes:ro" memeseeks:ci
           for i in $(seq 1 60); do curl -fs -o /dev/null http://127.0.0.1:8765/ && break; sleep 1; done
-          curl -fs http://127.0.0.1:8765/ | grep -q "无情的梗图诱捕器"
+          curl -fs http://127.0.0.1:8765/ | grep -q "迷因捕手"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/status)" = 401
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer ci-token-0123456789abcdef' http://127.0.0.1:8765/api/status)" = 409
       - name: container logs

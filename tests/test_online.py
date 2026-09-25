@@ -1,76 +1,27 @@
-import json
 import random
 
-import pytest
 from fastapi.testclient import TestClient
 
 from memeseeks.library import Library, Models
-from memeseeks.online import KlipyMemes, OnlineError, OnlineHit, OnlineService
+from memeseeks.online import customer_id_for, klipy_config
 from memeseeks.server import create_app
 from memeseeks.service import LibraryService
 from tests.fakes import FakeBge, FakeClip, FakeOcr, solid
 
-KLIPY_RESPONSE = {
-    "result": True,
-    "data": {
-        "data": [
-            {"id": 101, "slug": "cat-keyboard", "title": "Cat on keyboard", "type": "meme",
-             "file": {"hd": {"jpg": {"url": "https://static.example/101_hd.jpg", "width": 800, "height": 600}},
-                      "sm": {"jpg": {"url": "https://static.example/101_sm.jpg", "width": 220, "height": 165}}}},
-            {"id": "ad-1", "type": "ad", "title": "Buy things",
-             "file": {"hd": {"jpg": {"url": "https://ads.example/ad.jpg", "width": 800}}}},
-            {"id": 102, "title": "No image here", "type": "meme"},
-        ],
-        "has_next": True,
-    },
-}
+
+def test_klipy_config_points_the_browser_at_klipy_directly():
+    cfg = klipy_config("KEY123", customer_id="c-1")
+    assert cfg.provider == "KLIPY"
+    assert cfg.search_url == "https://api.klipy.com/api/v1/KEY123/static-memes/search"
+    assert cfg.share_url == "https://api.klipy.com/api/v1/KEY123/static-memes/share/"
+    assert cfg.params == {"customer_id": "c-1", "locale": "cn", "content_filter": "medium", "per_page": 24}
+    assert cfg.attribution_url == "https://klipy.com"
 
 
-def test_klipy_builds_the_request_and_parses_hits():
-    seen = {}
-
-    def fetch(url):
-        seen["url"] = url
-        return KLIPY_RESPONSE
-
-    hits = KlipyMemes("KEY123", fetch=fetch).search("猫 键盘", n=5)
-    assert "/api/v1/KEY123/static-memes/search?" in seen["url"] and "q=%E7%8C%AB" in seen["url"]
-    assert "per_page=5" in seen["url"]
-    assert hits == [OnlineHit(id="klipy:101", title="Cat on keyboard",
-                              thumb="https://static.example/101_sm.jpg", full="https://static.example/101_hd.jpg",
-                              provider="KLIPY")]
-
-
-def test_klipy_error_payload_raises_a_clear_error():
-    bad = {"result": False, "errors": {"message": ["The provided API key is invalid."]}}
-    with pytest.raises(OnlineError, match="invalid"):
-        KlipyMemes("nope", fetch=lambda url: bad).search("cat")
-
-
-class FakeSource:
-    name = "FAKE"
-
-    def search(self, query, n=20):
-        return [OnlineHit("fake:1", f"{query} meme", "https://img.example/t.jpg", "https://img.example/f.jpg", "FAKE")]
-
-
-def fake_download(url, max_bytes):
-    return (b"\xff\xd8\xff fake jpeg for " + url.encode(), "image/jpeg")
-
-
-def test_proxy_serves_only_urls_a_search_returned():
-    online = OnlineService(FakeSource(), download=fake_download)
-    hits = online.search("猫")
-    assert online.image(hits[0].id, "thumb")[0].endswith(b"t.jpg")
-    assert online.image("fake:999", "thumb") is None  # never searched: no fetch at all
-    assert online.image(hits[0].id, "../../etc") is None
-
-
-def test_proxy_refuses_non_images():
-    online = OnlineService(FakeSource(), download=lambda url, max_bytes: (b"<html>", "text/html"))
-    hit = online.search("猫")[0]
-    with pytest.raises(OnlineError):
-        online.image(hit.id, "full")
+def test_customer_id_is_random_but_stable_per_library(tmp_path):
+    a = customer_id_for(tmp_path / "lib-a")
+    assert a == customer_id_for(tmp_path / "lib-a") and a != customer_id_for(tmp_path / "lib-b")
+    assert len(a) >= 16 and "memeseeks" not in a  # anonymous: nothing about the machine or user
 
 
 def _client(tmp_path, online=None):
@@ -84,36 +35,17 @@ def _client(tmp_path, online=None):
     return TestClient(app, base_url="http://127.0.0.1")
 
 
-def test_online_endpoint_is_off_unless_configured(tmp_path):
-    body = _client(tmp_path).get("/api/online", params={"q": "猫"}).json()
-    assert body == {"enabled": False, "hits": []}
+def test_online_config_is_off_unless_configured(tmp_path):
+    assert _client(tmp_path).get("/api/online/config").json() == {"enabled": False}
 
 
-def test_online_hits_come_back_with_proxied_image_urls(tmp_path):
-    client = _client(tmp_path, OnlineService(FakeSource(), download=fake_download))
-    body = client.get("/api/online", params={"q": "猫"}).json()
-    assert body["enabled"] is True and body["provider"] == "FAKE"
-    hit = body["hits"][0]
-    assert hit["thumb"].startswith("/api/online/img/") and "img.example" not in json.dumps(hit)
-    r = client.get(hit["thumb"])
-    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
-    assert client.get("/api/online/img/fake:999?v=thumb").status_code == 404
+def test_online_config_is_served_when_on(tmp_path):
+    body = _client(tmp_path, klipy_config("KEY123", customer_id="c-1")).get("/api/online/config").json()
+    assert body["enabled"] is True and body["provider"] == "KLIPY"
+    assert body["search_url"].endswith("/KEY123/static-memes/search") and body["params"]["customer_id"] == "c-1"
 
 
-def test_provider_failure_is_a_clear_error_not_a_500(tmp_path):
-    class Broken:
-        name = "BROKEN"
-
-        def search(self, query, n=20):
-            raise OnlineError("KLIPY said: The provided API key is invalid.")
-
-    r = _client(tmp_path, OnlineService(Broken(), download=fake_download)).get("/api/online", params={"q": "猫"})
-    assert r.status_code == 502 and "invalid" in r.json()["error"]
-
-
-def test_online_image_can_be_downloaded_as_a_file(tmp_path):
-    client = _client(tmp_path, OnlineService(FakeSource(), download=fake_download))
-    hit = client.get("/api/online", params={"q": "猫"}).json()["hits"][0]
-    r = client.get(hit["image"] + "&download=1")
-    assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]
-    assert "fake-1.jpg" in r.headers["content-disposition"]
+def test_the_server_no_longer_relays_online_searches_or_images(tmp_path):
+    client = _client(tmp_path, klipy_config("KEY123", customer_id="c-1"))
+    assert client.get("/api/online", params={"q": "猫"}).status_code == 404
+    assert client.get("/api/online/img/klipy:1", params={"v": "thumb"}).status_code == 404

@@ -60,7 +60,7 @@ def test_rediscover_and_status(tmp_path):
 def test_index_page_is_served(tmp_path):
     client, _ = _client(tmp_path)
     r = client.get("/")
-    assert r.status_code == 200 and "无情的梗图诱捕器" in r.text
+    assert r.status_code == 200 and "迷因捕手" in r.text
 
 
 def test_token_protects_api_and_cookie_keeps_working(tmp_path):

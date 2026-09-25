@@ -22,7 +22,7 @@ def _positive(value: str) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="memeseeks", description="无情的梗图诱捕器 — find memes by what you remember.")
+    p = argparse.ArgumentParser(prog="memeseeks", description="迷因捕手 — find memes by what you remember.")
     p.add_argument("--version", action="version", version=f"memeseeks {__version__}")
     p.add_argument("--lib", help="library directory (default: $MEMESEEKS_HOME or ~/.memeseeks)")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -55,11 +55,11 @@ def _serve_options(p: argparse.ArgumentParser) -> None:
                    help="also search the web (sends your search words to the provider); klipy needs $MEMESEEKS_KLIPY_KEY")
 
 
-def create_online(name: str, key: str):
-    from .online import KlipyMemes, OnlineService
+def create_online(name: str, key: str, library_root):
+    from .online import customer_id_for, klipy_config
 
     if name == "klipy":
-        return OnlineService(KlipyMemes(key))
+        return klipy_config(key, customer_id=customer_id_for(library_root))
     raise ValueError(name)
 
 
@@ -71,7 +71,7 @@ _GENERATE = 'generate one with: python -c "import secrets; print(secrets.token_u
 
 def _online_problem(online: str) -> str | None:
     if online == "klipy" and not os.environ.get("MEMESEEKS_KLIPY_KEY"):
-        return "--online klipy needs an API key in MEMESEEKS_KLIPY_KEY (free: https://klipy.com/developers)"
+        return "--online klipy needs an API key in MEMESEEKS_KLIPY_KEY (free: https://partner.klipy.com)"
     return None
 
 
@@ -109,11 +109,12 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
     if host in ("0.0.0.0", "::"):
         print("from your phone use this computer's LAN address instead of 127.0.0.1; over plain http "
               "only 保存 works there — copy and share need localhost or HTTPS")
-    online_service = None
+    online_config = None
     if online != "off":
-        online_service = create_online(online, os.environ.get("MEMESEEKS_KLIPY_KEY", ""))
-        print(f"online search is on: your search words are also sent to {online}")
-    uvicorn.run(create_app(service, token=token, online=online_service), host=host, port=port, log_level="warning")
+        online_config = create_online(online, os.environ.get("MEMESEEKS_KLIPY_KEY", ""), lib.root)
+        print(f"online search is on: the browser also sends your search words to {online_config.provider} "
+              "and loads its images from there")
+    uvicorn.run(create_app(service, token=token, online=online_config), host=host, port=port, log_level="warning")
     return 0
 
 

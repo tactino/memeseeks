@@ -50,7 +50,7 @@ def test_piped_output_is_utf8():
     from pathlib import Path
     env = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[1] / "src"))  # works without pip install
     out = subprocess.run([sys.executable, "-m", "memeseeks.cli", "--help"], capture_output=True, env=env)
-    assert "无情的梗图诱捕器" in out.stdout.decode("utf-8")
+    assert "迷因捕手" in out.stdout.decode("utf-8")
 
 
 def test_add_interrupted_before_indexing_gives_a_message_not_a_traceback(tmp_path, capsys):
@@ -287,6 +287,8 @@ def test_online_klipy_is_passed_to_the_app(tmp_path, monkeypatch):
 
     import uvicorn
     monkeypatch.setattr(uvicorn, "run", fake_run)
-    monkeypatch.setattr(cli, "create_online", lambda name, key: built.update(online=(name, key)) or None)
+    real = cli.create_online
+    monkeypatch.setattr(cli, "create_online", lambda *a: built.update(online=real(*a)) or built["online"])
     assert main(["--lib", str(tmp_path / "lib"), "serve", "--online", "klipy"], models=_models()) == 0
-    assert built["online"] == ("klipy", "k-123")
+    assert "/k-123/static-memes/search" in built["online"].search_url
+    assert built["online"].params["customer_id"] == (tmp_path / "lib" / "online-customer-id").read_text()

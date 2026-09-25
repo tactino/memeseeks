@@ -47,7 +47,6 @@ body {
   line-height: 1.05;
 }
 
-.motto { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
 
 /* The trap: the one loud element on the page. */
 .trap {
@@ -248,3 +247,5 @@ button:focus-visible, a:focus-visible, .tile:focus-visible { outline: 3px solid 
 
 #online { margin-top: 28px; padding-top: 18px; border-top: 3px dashed color-mix(in srgb, var(--ink) 25%, transparent); }
 .source { color: var(--muted); font-size: 13px; }
+.source a { color: inherit; }
+iframe.tile.ad { width: 100%; aspect-ratio: 1; border: 0; }

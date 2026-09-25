@@ -1,8 +1,6 @@
-# 无情的梗图诱捕器 · memeseeks
+# 迷因捕手 · memeseeks
 
-> 万梗归宗：找梗，也找梗的来处。
-
-*The Ruthless Meme Trap* — describe what you remember about a meme, get it back from your own collection. Works across Chinese and English, runs entirely on your machine.
+Describe what you remember about a meme, get it back from your own collection. Works across Chinese and English, runs on your machine; searching the web as well is optional and off by default.
 
 **Status:** v0.2 — command line, a local web app and a Docker image. A cross-language meme graph and re-making translated memes are on the roadmap.
 
@@ -68,13 +66,23 @@ memeseeks eval queries.csv                # score your own queries (see below)
 memeseeks --lib D:\memes-lib status       # global options such as --lib go before the command
 ```
 
-The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOME`). Nothing leaves your machine.
+The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOME`). Nothing leaves your machine unless you turn on online search.
 
 ### The web app
 
 The home screen shows 旧梗重温 — memes you have not seen in a while — and a search box. Tap a meme for 复制 / 保存 / 分享. On the computer running it (`localhost`) it also installs as an app from the browser menu.
 
 **From your phone:** run `memeseeks serve --host 0.0.0.0 --token <something secret>` and open the printed link with your computer's LAN address. Over plain `http` the phone can search and **save**; **copy** and **share** (and installing as an app) need `localhost` or HTTPS, because browsers only allow them in a secure context.
+
+### Online search (optional)
+
+Results from your own library and from the web are shown in separate sections. Web search is off by default. To turn it on, get a free [KLIPY](https://partner.klipy.com) API key and run:
+
+```bash
+MEMESEEKS_KLIPY_KEY=<your key> memeseeks serve --online klipy     # or set MEMESEEKS_ONLINE=klipy
+```
+
+When it is on, **the browser** sends your search words to KLIPY, together with a random per-library id and your IP address, and loads the images directly from KLIPY. The memeseeks server never relays or stores them. KLIPY's results are shown exactly as returned, possibly including ads; its terms don't allow filtering or reordering, so adjust content settings in the KLIPY Partner Panel. The key is visible to anyone who can open your web app. KLIPY covers English and Japanese well and Chinese only thinly.
 
 ### Scoring your own queries
 
