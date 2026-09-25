@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hmac
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -10,11 +13,14 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .inbox import MAX_IMAGE_BYTES, InboxError
 from .library import LibraryError
 from .search import EmptyLibrary
 
 WEB = Path(__file__).parent / "web"
 TOKEN_COOKIE = "memeseeks_token"
+INBOX_KEY_HEADER = "x-memeseeks-key"
+MAX_INBOX_BODY = MAX_IMAGE_BYTES * 4 // 3 + 64 * 1024  # base64 image plus a little metadata
 # mimetypes misses some of these on Windows; Web Share rejects files typed application/octet-stream.
 IMAGE_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
                ".webp": "image/webp", ".bmp": "image/bmp", ".heic": "image/heic", ".heif": "image/heif"}
@@ -24,7 +30,7 @@ def _with_urls(items: list[dict]) -> list[dict]:
     return [dict(m, image=f"/api/image/{m['id']}", thumb=f"/api/thumb/{m['id']}") for m in items]
 
 
-def create_app(service, token: str | None = None, online=None) -> FastAPI:
+def create_app(service, token: str | None = None, online=None, inbox=None, indexer=None) -> FastAPI:
     app = FastAPI(title="memeseeks", docs_url=None, redoc_url=None, openapi_url=None)
 
     def _matches(value: str | None) -> bool:
@@ -43,7 +49,9 @@ def create_app(service, token: str | None = None, online=None) -> FastAPI:
         @app.middleware("http")
         async def _require_token(request: Request, call_next):
             # The page and its static files hold no data; every /api/* route (images included) does.
-            if request.url.path.startswith("/api/") and not _authorized(request):
+            # The inbox checks its own key (the browser script has that, not the token).
+            if (request.url.path.startswith("/api/") and request.url.path != "/api/inbox"
+                    and not _authorized(request)):
                 return JSONResponse({"error": "token required: open the link printed by `memeseeks serve`"},
                                     status_code=401)
             response = await call_next(request)
@@ -66,13 +74,38 @@ def create_app(service, token: str | None = None, online=None) -> FastAPI:
         # Settings only: the page asks the provider itself and shows its images from there.
         return online.as_json() if online is not None else {"enabled": False}
 
+    if inbox is not None:
+        @app.post("/api/inbox")
+        async def receive(request: Request):
+            # Only the browser script knows this key. Ordinary web pages can't send a custom header
+            # to this server at all (the CORS preflight fails), so they can't slip memes in.
+            if not hmac.compare_digest(request.headers.get(INBOX_KEY_HEADER, "").encode(), inbox.key().encode()):
+                return JSONResponse({"error": "wrong or missing inbox key: reinstall the browser script"},
+                                    status_code=401)
+            if int(request.headers.get("content-length") or 0) > MAX_INBOX_BODY:
+                return JSONResponse({"error": "image too large"}, status_code=413)
+            try:
+                body = json.loads(await request.body())
+                data = base64.b64decode(body.get("image", ""), validate=True)
+                result = inbox.receive(data, body)
+            except (json.JSONDecodeError, binascii.Error, AttributeError, TypeError) as exc:
+                return JSONResponse({"error": f"bad request: {exc}"}, status_code=400)
+            except InboxError as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+            if result["status"] == "added" and indexer is not None:
+                indexer.request()
+            return result
+
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):
         return _with_urls(service.rediscover(n=n))
 
     @app.get("/api/status")
     def status():
-        return service.status()
+        found = service.status()
+        if indexer is not None:
+            found["indexing"] = indexer.status()
+        return found
 
     @app.get("/api/image/{image_id}")
     def image(image_id: str, download: int = 0):

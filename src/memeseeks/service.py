@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from .images import load_image
+from .inbox import PROVENANCE_FILE, read_provenance
 from .index import _atomic_write_text, _tmp_for
 from .search import Searcher
 
@@ -31,6 +32,7 @@ class LibraryService:
         self._searcher, self._stamp = None, None
         self._searcher_lock = threading.Lock()
         self._seen_lock = threading.Lock()
+        self._provenance, self._provenance_stamp = {}, None
 
     def _index_stamp(self):
         stamps = []
@@ -53,8 +55,22 @@ class LibraryService:
         """Load the index and the query-side models now, so the first search is as fast as the rest."""
         self.searcher().search("warm up", k=1)
 
+    def sources(self) -> dict[str, list[dict]]:
+        """Where inbox memes came from, re-read only when the file changed."""
+        try:
+            stamp = os.stat(self.library.root / PROVENANCE_FILE).st_mtime_ns
+        except OSError:
+            stamp = None
+        if stamp != self._provenance_stamp:
+            self._provenance, self._provenance_stamp = read_provenance(self.library.root), stamp
+        return self._provenance
+
     def _item(self, s: Searcher, i: str, score: float | None = None, match: float | None = None) -> dict:
-        return {"id": i, "score": score, "match": match, "text": s.text.get(i, ""), "relpath": s.relpath[i]}
+        item = {"id": i, "score": score, "match": match, "text": s.text.get(i, ""), "relpath": s.relpath[i]}
+        found = self.sources().get(i)
+        if found:  # the first place it was collected from
+            item["source"] = {k: found[0][k] for k in ("site", "page_url", "page_title") if k in found[0]}
+        return item
 
     def search(self, query: str, maybe_k: int = 12) -> dict:
         """Confident matches first; `maybe` holds a few more candidates for when nothing is certain."""

@@ -292,3 +292,19 @@ def test_online_klipy_is_passed_to_the_app(tmp_path, monkeypatch):
     assert main(["--lib", str(tmp_path / "lib"), "serve", "--online", "klipy"], models=_models()) == 0
     assert "/k-123/static-memes/search" in built["online"].search_url
     assert built["online"].params["customer_id"] == (tmp_path / "lib" / "online-customer-id").read_text()
+
+
+def test_serve_opens_the_inbox_and_watches_folders(tmp_path, monkeypatch):
+    import uvicorn
+
+    from memeseeks.indexer import BackgroundIndexer
+    from memeseeks.library import Library
+    started, apps = [], []
+    monkeypatch.setattr(BackgroundIndexer, "start", lambda self: started.append(self))
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: apps.append(app))
+    lib = tmp_path / "lib"
+    assert main(["--lib", str(lib), "serve"], models=_models()) == 0
+    assert str((lib / "inbox").resolve()) in Library(lib).config()["sources"] and len(started) == 1
+    assert any(getattr(r, "path", "") == "/api/inbox" for r in apps[0].routes)
+    assert main(["--lib", str(lib), "serve", "--no-watch"], models=_models()) == 0
+    assert len(started) == 1  # --no-watch starts no indexer

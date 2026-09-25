@@ -72,6 +72,8 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 The home screen shows 旧梗重温 — memes you have not seen in a while — and a search box. Tap a meme for 复制 / 保存 / 分享. On the computer running it (`localhost`) it also installs as an app from the browser menu.
 
+**New memes are picked up by themselves.** While `serve` runs, images you add to any library folder are indexed in the background and become searchable within about a minute (`--no-watch` turns this off). On Windows the indexing runs at below-normal priority, so the rest of the computer stays responsive. The library also has an inbox folder, `<library>/inbox`, for memes that don't belong to one of your folders; a browser script that collects memes from community pages into it is next on the roadmap.
+
 **From your phone:** run `memeseeks serve --host 0.0.0.0 --token <something secret>` and open the printed link with your computer's LAN address. Over plain `http` the phone can search and **save**; **copy** and **share** (and installing as an app) need `localhost` or HTTPS, because browsers only allow them in a secure context.
 
 ### Online search (optional)

@@ -53,6 +53,8 @@ def _serve_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--token", default=os.environ.get("MEMESEEKS_TOKEN"), help="access token (or $MEMESEEKS_TOKEN)")
     p.add_argument("--online", choices=["off", "klipy"], default=os.environ.get("MEMESEEKS_ONLINE", "off"),
                    help="also search the web (sends your search words to the provider); klipy needs $MEMESEEKS_KLIPY_KEY")
+    p.add_argument("--no-watch", action="store_true",
+                   help="don't index new images in the library folders (and the inbox) while serving")
 
 
 def create_online(name: str, key: str, library_root):
@@ -86,7 +88,8 @@ def _exposure_problem(host: str, token: str | None) -> str | None:
     return None
 
 
-def _serve(lib: Library, models: Models, host: str, port: int, token: str | None, online: str = "off") -> int:
+def _serve(lib: Library, models: Models, host: str, port: int, token: str | None, online: str = "off",
+           watch: bool = True) -> int:
     problem = _exposure_problem(host, token) or _online_problem(online)
     if problem:
         return _fail(problem)
@@ -96,9 +99,13 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
         from .server import create_app
     except ImportError:
         return _fail('the web app needs the serve extra: pip install -e ".[serve]"')
+    from .inbox import Inbox
+    from .indexer import BackgroundIndexer
     from .search import EmptyLibrary as _Empty
     from .service import LibraryService
 
+    inbox = Inbox(lib)
+    inbox.ensure_source()  # a folder like any other: the browser script and you can both drop memes here
     service = LibraryService(lib, models)
     try:
         service.warm()  # load the index and models now, not on the first search
@@ -114,7 +121,13 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
         online_config = create_online(online, os.environ.get("MEMESEEKS_KLIPY_KEY", ""), lib.root)
         print(f"online search is on: the browser also sends your search words to {online_config.provider} "
               "and loads its images from there")
-    uvicorn.run(create_app(service, token=token, online=online_config), host=host, port=port, log_level="warning")
+    indexer = None
+    if watch:
+        indexer = BackgroundIndexer(lib, models)
+        indexer.start()
+        print(f"new memes in your folders are indexed automatically; inbox: {inbox.folder}")
+    app = create_app(service, token=token, online=online_config, inbox=inbox, indexer=indexer)
+    uvicorn.run(app, host=host, port=port, log_level="warning")
     return 0
 
 
@@ -194,7 +207,7 @@ def main(argv=None, models: Models | None = None) -> int:
             if problem:
                 return _fail(problem)
             return _add(lib, models, args.folder) or _serve(lib, models, args.host, args.port, args.token,
-                                                              online=args.online)
+                                                              online=args.online, watch=not args.no_watch)
         elif args.cmd == "search":
             matches, maybe = Searcher(lib, models).split_search(args.query, maybe_k=args.k)
             if args.json:
@@ -215,7 +228,8 @@ def main(argv=None, models: Models | None = None) -> int:
         elif args.cmd == "status":
             _status(lib, models)
         elif args.cmd == "serve":
-            return _serve(lib, models, args.host, args.port, args.token, online=args.online)
+            return _serve(lib, models, args.host, args.port, args.token, online=args.online,
+                          watch=not args.no_watch)
         elif args.cmd == "eval":
             result = Searcher(lib, models).evaluate(args.csv)
             print(f"{result['n_queries']} labeled queries; {len(result['unlabeled'])} unlabeled: {result['unlabeled']}")
