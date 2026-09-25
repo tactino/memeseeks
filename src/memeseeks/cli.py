@@ -55,6 +55,8 @@ def _serve_options(p: argparse.ArgumentParser) -> None:
                    help="also search the web (sends your search words to the provider); klipy needs $MEMESEEKS_KLIPY_KEY")
     p.add_argument("--no-watch", action="store_true",
                    help="don't index new images in the library folders (and the inbox) while serving")
+    p.add_argument("--open", action="store_true",
+                   help="open the web app in your browser once it is ready (or right away if it already runs)")
 
 
 def create_online(name: str, key: str, library_root):
@@ -88,11 +90,48 @@ def _exposure_problem(host: str, token: str | None) -> str | None:
     return None
 
 
+def _answers(url: str, timeout: float = 1.0) -> bool:
+    """Whether a memeseeks server already answers at `url` (401 counts: it runs, with a token)."""
+    import urllib.error
+    import urllib.request
+
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # localhost never goes through a proxy
+    try:
+        with opener.open(url.rstrip("/") + "/api/status", timeout=timeout) as r:
+            return r.status == 200
+    except urllib.error.HTTPError as exc:
+        return exc.code == 401
+    except OSError:
+        return False
+
+
+def _open_when_ready(url: str, probe=_answers, opener=None, wait: float = 120.0, step: float = 0.5) -> bool:
+    """Open `url` in the browser as soon as the server answers; give up after `wait` seconds."""
+    import time
+    import webbrowser
+
+    deadline = time.monotonic() + wait
+    while time.monotonic() < deadline:
+        if probe(url):
+            (opener or webbrowser.open)(url)
+            return True
+        time.sleep(step)
+    return False
+
+
 def _serve(lib: Library, models: Models, host: str, port: int, token: str | None, online: str = "off",
-           watch: bool = True) -> int:
+           watch: bool = True, open_browser: bool = False) -> int:
     problem = _exposure_problem(host, token) or _online_problem(online)
     if problem:
         return _fail(problem)
+    shown = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    url = f"http://{shown}:{port}/" + (f"?token={token}" if token else "")
+    if open_browser and _answers(url.split("?")[0]):  # e.g. the desktop launcher clicked twice
+        import webbrowser
+
+        print(f"memeseeks already runs at {url}")
+        webbrowser.open(url)
+        return 0
     try:
         import uvicorn
 
@@ -111,8 +150,7 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
         service.warm()  # load the index and models now, not on the first search
     except _Empty as exc:
         print(f"note: {exc}", file=sys.stderr)
-    shown = "127.0.0.1" if host in ("0.0.0.0", "::") else host
-    print(f"memeseeks is at http://{shown}:{port}/" + (f"?token={token}" if token else ""))
+    print(f"memeseeks is at {url}")
     if host in ("0.0.0.0", "::"):
         print("from your phone use this computer's LAN address instead of 127.0.0.1; over plain http "
               "only 保存 works there — copy and share need localhost or HTTPS")
@@ -127,6 +165,10 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
         indexer.start()
         print(f"new memes in your folders are indexed automatically; inbox: {inbox.folder}")
     app = create_app(service, token=token, online=online_config, inbox=inbox, indexer=indexer)
+    if open_browser:
+        import threading
+
+        threading.Thread(target=_open_when_ready, args=(url,), daemon=True).start()
     uvicorn.run(app, host=host, port=port, log_level="warning")
     return 0
 
@@ -207,7 +249,8 @@ def main(argv=None, models: Models | None = None) -> int:
             if problem:
                 return _fail(problem)
             return _add(lib, models, args.folder) or _serve(lib, models, args.host, args.port, args.token,
-                                                              online=args.online, watch=not args.no_watch)
+                                                              online=args.online, watch=not args.no_watch,
+                                                              open_browser=args.open)
         elif args.cmd == "search":
             matches, maybe = Searcher(lib, models).split_search(args.query, maybe_k=args.k)
             if args.json:
@@ -229,7 +272,7 @@ def main(argv=None, models: Models | None = None) -> int:
             _status(lib, models)
         elif args.cmd == "serve":
             return _serve(lib, models, args.host, args.port, args.token, online=args.online,
-                          watch=not args.no_watch)
+                          watch=not args.no_watch, open_browser=args.open)
         elif args.cmd == "eval":
             result = Searcher(lib, models).evaluate(args.csv)
             print(f"{result['n_queries']} labeled queries; {len(result['unlabeled'])} unlabeled: {result['unlabeled']}")

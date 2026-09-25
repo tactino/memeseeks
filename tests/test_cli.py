@@ -308,3 +308,31 @@ def test_serve_opens_the_inbox_and_watches_folders(tmp_path, monkeypatch):
     assert any(getattr(r, "path", "") == "/api/inbox" for r in apps[0].routes)
     assert main(["--lib", str(lib), "serve", "--no-watch"], models=_models()) == 0
     assert len(started) == 1  # --no-watch starts no indexer
+
+
+def test_open_waits_until_the_server_answers():
+    from memeseeks.cli import _open_when_ready
+    answers, opened = iter([False, False, True]), []
+    assert _open_when_ready("http://127.0.0.1:1/", probe=lambda url: next(answers), opener=opened.append, step=0)
+    assert opened == ["http://127.0.0.1:1/"]
+    assert not _open_when_ready("http://127.0.0.1:1/", probe=lambda url: False, opener=opened.append, wait=0.05, step=0)
+    assert len(opened) == 1
+
+
+def test_nothing_answers_on_a_closed_port():
+    from memeseeks.cli import _answers
+    assert _answers("http://127.0.0.1:9/", timeout=0.5) is False
+
+
+def test_open_on_a_running_server_just_opens_the_browser(tmp_path, monkeypatch):
+    import webbrowser
+
+    import uvicorn
+
+    import memeseeks.cli as cli
+    opened, ran = [], []
+    monkeypatch.setattr(cli, "_answers", lambda url, timeout=1.0: True)
+    monkeypatch.setattr(webbrowser, "open", opened.append)
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: ran.append(app))
+    assert main(["--lib", str(tmp_path / "lib"), "serve", "--open", "--port", "8799"], models=_models()) == 0
+    assert opened == ["http://127.0.0.1:8799/"] and not ran

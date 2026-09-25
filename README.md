@@ -52,6 +52,7 @@ docker compose logs -f      # wait for "memeseeks is at http://…"
 ```bash
 memeseeks add ~/Pictures/memes            # index a folder; re-run any time, only new images are processed
 memeseeks serve                           # web app at http://127.0.0.1:8765/
+memeseeks serve --open                    # ... and open it in the browser (or just open it if it already runs)
 memeseeks search "关于熬夜的"              # or search from the terminal
 memeseeks status                          # what is in the library, and any images that failed a step
 ```
