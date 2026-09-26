@@ -67,7 +67,7 @@ Kept to what changes the experience; each has a sensible default.
 | 主题 | 纸色 / 夜间 |
 | 蒙德里安边框 | 开 / 关 |
 | 开场动画 | 开 / 关 (it plays once per visit, not on every page; shown once the entrance exists) |
-| 动效 | 完整 / 减少 (the system's reduce-motion setting always wins; shown once there is motion to reduce) |
+| 动效 | 完整 / 减少: no cat animations, no slides (the system's reduce-motion setting always wins) |
 | 网上搜索 | 开 / 关 (shown only when the server was started with a web source, which is itself off by default) |
 | 来源文件夹 | the watched folders: add (a path on the computer running the server), remove; the collector's inbox stays |
 | 连接浏览器 | install the collector (the steps live here, not on the home page) |
@@ -142,7 +142,7 @@ use the same command list for every shape, so every animation is just interpolat
 |---|---|---|
 | loading | closed ↔ logo, played forward then back | 3.2 s loop |
 | entrance | logo and name appear together; pop, pop (two quick half-opens); the mouth opens; the bubble pops; the lockup glides to its place while the page fades in | about 2.9 s; a click skips it |
-| click the cat | swallows the bubble, shuts, opens, spits it out | 0.86 s |
+| click the cat | swallows the bubble, shuts, opens, spits it out; the name next to it still goes home | 0.86 s |
 | click it quickly | a counter "POP ×n" (a nod to popcat.click), a shorter gulp each click | 0.34 s per click |
 | pull to refresh (touch) | open by default; pulling swallows the bubble and shuts the mouth, it stays shut while held; letting go opens it and spits the bubble out | |
 | empty results | the cat with its mouth shut: 这里还没有梗 | still |

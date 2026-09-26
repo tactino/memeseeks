@@ -109,9 +109,11 @@ function applySettings(s) {
   const root = document.documentElement;
   if (s.theme === "night") root.dataset.theme = "night"; else delete root.dataset.theme;
   if (s.frame) delete root.dataset.frame; else root.dataset.frame = "off";
+  if (s.motion === "reduced") root.dataset.motion = "reduced"; else delete root.dataset.motion;
   try {  // so the next visit paints in the right theme before the settings arrive (index.html)
     localStorage.setItem("memeseeks-theme", s.theme);
     localStorage.setItem("memeseeks-frame", s.frame ? "on" : "off");
+    localStorage.setItem("memeseeks-motion", s.motion);
   } catch (e) { /* storage blocked */ }
   $('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue("--paper").trim();
   Frame.draw();
@@ -313,7 +315,7 @@ async function onlineSection(query) {
 // ---------------- pages ----------------
 async function homePage() {
   const hero = h("section.hero", {},
-    h("a.lockup", { href: "./", "aria-label": "迷因捕手" }, Cat.make({}),
+    h("a.lockup", { href: "./", "aria-label": "迷因捕手" }, poppable(Cat.make({})),
       h("span.wordmark", {}, h("span.zh", { text: "迷因捕手" }), h("span.en", {}, [..."MEMESEEKS"].map((c) => h("i", { text: c }))))),
     h("p.tagline", { text: "梗图爱好者的宝库 · 用你记得的那句话找到它" }),
     searchForm());
@@ -539,6 +541,8 @@ async function settingsPage() {
     h("div.settings", {},
       row("主题", choice("theme", [["paper", "纸色"], ["night", "夜间"]])),
       row("蒙德里安边框", choice("frame", [[true, "开"], [false, "关"]])),
+      row("动效", choice("motion", [["full", "完整"], ["reduced", "减少"]]),
+        h("p.hint", { text: "减少：不播放小猫动画和翻页滑动。系统设置了减少动态效果时，总是减少。" })),
       online.enabled ? row("网上搜索", choice("online", [[true, "开"], [false, "关"]]),
         h("p.hint", { text: `搜索时也到 ${online.provider} 上找，结果单独列在最后。` })) : null,
       row("来源文件夹", folders, add,
@@ -546,9 +550,90 @@ async function settingsPage() {
       row("连接浏览器", ...connectSteps()))];
 }
 
+// ---------------- the cat's eggs (docs/design.md, "The cat") ----------------
+// a click on the logo's cat pops it (the name still goes home); quick clicks count up, a nod to popcat.click
+const popBadge = h("div.popcount", { "aria-hidden": "true" });
+document.body.append(popBadge);
+let pops = 0, lastPop = 0;
+function popCat(e) {
+  const svg = e.currentTarget;
+  e.preventDefault();
+  e.stopPropagation();
+  const now = performance.now();
+  pops = now - lastPop < 700 ? pops + 1 : 1;
+  lastPop = now;
+  if (pops >= 2) {
+    const r = svg.getBoundingClientRect();
+    popBadge.style.left = `${r.left}px`;
+    popBadge.style.top = r.top > 90 ? `${r.top - 34}px` : `${r.bottom + 6}px`;
+    popBadge.replaceChildren("POP ", h("b", { text: `×${pops}` }));
+    popBadge.classList.remove("bump");
+    void popBadge.offsetWidth;
+    popBadge.classList.add("bump", "on");
+  }
+  clearTimeout(popCat.timer);
+  popCat.timer = setTimeout(() => { popBadge.classList.remove("on"); pops = 0; }, 1200);
+  Cat.pop(svg, pops >= 2);
+}
+const poppable = (svg) => { svg.classList.add("pop-cat"); svg.addEventListener("click", popCat); return svg; };
+
+// pull to refresh (touch): the cat starts open; pulling swallows the bubble and shuts the mouth, and it
+// stays shut while held; letting go opens it and spits the bubble out while the page reloads its content
+{
+  const ptr = h("div.ptr", { "aria-hidden": "true" }, Cat.make({}));
+  const cat = ptr.firstChild, wrap = $(".wrap");
+  document.body.append(ptr);  // outside .wrap: a transformed ancestor would carry a fixed element along
+  const MAX = 120, GO = 84;
+  let y0 = null, pull = 0;
+  const setPull = (px, animate) => {
+    pull = px;
+    const tr = animate ? "transform .35s cubic-bezier(.2, .8, .2, 1), opacity .35s" : "none";
+    wrap.style.transition = tr;
+    ptr.style.transition = tr;
+    wrap.style.transform = px ? `translateY(${px}px)` : "";
+    ptr.style.transform = `translate(-50%, ${px - cat.getBoundingClientRect().height - 10}px)`;  // in the gap, above the page
+    ptr.style.opacity = px > 6 ? 1 : 0;
+  };
+  addEventListener("touchstart", (e) => {
+    const off = document.body.dataset.view === "feed" || document.querySelector("dialog[open]") || Cat.still();
+    y0 = !off && scrollY <= 0 && e.touches.length === 1 ? e.touches[0].clientY : null;
+  }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    const dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { setPull(0); return; }
+    e.preventDefault();
+    const px = Math.min(MAX, dy * 0.55);
+    setPull(px, false);
+    Cat.set(cat, Cat.ease(Math.min(1, px / (GO * 0.85))), Math.max(0, 1 - px / 36));  // the bubble goes in first
+  }, { passive: false });
+  addEventListener("touchend", () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (pull < GO) { setPull(0, true); Cat.set(cat, 0, 1); return; }
+    setPull(GO * 0.8, true);  // hold the page down while it reloads
+    const done = render();
+    const t0 = performance.now();
+    const step = (now) => {  // open (220 ms), then spit the bubble (200 ms)
+      const t = now - t0;
+      Cat.set(cat, t < 150 ? 1 : t < 370 ? 1 - Cat.ease((t - 150) / 220) : 0, t < 370 ? 0 : Cat.spit(Math.min(1, (t - 370) / 200)));
+      if (t < 570) requestAnimationFrame(step);
+      else done.finally(() => setTimeout(() => setPull(0, true), 150));
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+// loading: the cat opens into the logo and shuts again until the page is ready
+function loader() {
+  const cat = Cat.make({ closed: 1, bubble: 0 });
+  Cat.loop(cat);
+  return h("div.loading", { role: "status" }, cat, h("span.visually-hidden", { text: "正在加载" }));
+}
+
 // ---------------- 刷梗: full screen, one meme after another (docs/design.md, Pages and navigation) ----------------
 const qs = (params) => new URLSearchParams(Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== "")).toString();
-const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduceMotion = () => Cat.still();
 const remembered = {  // where each 图集's 刷梗 stopped: this browser only, a convenience
   get(album) { try { return JSON.parse(localStorage.getItem(`memeseeks-feed:${album}`)) || {}; } catch (e) { return {}; } },
   set(album, v) { try { localStorage.setItem(`memeseeks-feed:${album}`, JSON.stringify(v)); } catch (e) { /* storage blocked */ } },
@@ -805,11 +890,13 @@ async function render() {
   document.querySelectorAll("[data-tab]").forEach((a) => (a.dataset.tab === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   $("#bar-q").value = r.view === "search" ? r.q : "";
   let nodes;
+  const slow = setTimeout(() => { if (token === renderToken) view.replaceChildren(loader()); }, 350);
   try {
     nodes = await (PAGES[r.view] || homePage)(r);
   } catch (err) {
     nodes = err.status === 409 ? emptyLibrary() : h("p.notice.error", { text: err.message });
   }
+  clearTimeout(slow);
   const leave = [].concat(nodes).map((n) => n && n._leave).find(Boolean) || null;
   if (token !== renderToken) { if (leave) leave(); return; }  // a newer navigation won
   if (leavePage) leavePage();
@@ -845,7 +932,7 @@ async function refreshReviewCount() {
 }
 
 // ---------------- start ----------------
-Cat.draw($(".brand .cat"));
+poppable(Cat.draw($(".brand .cat")));
 Frame.draw();
 render();
 

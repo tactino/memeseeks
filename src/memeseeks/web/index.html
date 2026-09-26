@@ -17,6 +17,7 @@
     const t = localStorage.getItem("memeseeks-theme"), f = localStorage.getItem("memeseeks-frame");
     if (t === "night") document.documentElement.dataset.theme = "night";
     if (f === "off") document.documentElement.dataset.frame = "off";
+    if (localStorage.getItem("memeseeks-motion") === "reduced") document.documentElement.dataset.motion = "reduced";
   } catch (e) { /* storage blocked: the settings apply a moment later */ }
 </script>
 </head>

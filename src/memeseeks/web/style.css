@@ -290,4 +290,20 @@ body[data-view="feed"] .bar, body[data-view="feed"] .tabbar { display: none; }
 @media (hover: none) { .feed-nav { display: none; } }
 .meme figure a { display: contents; cursor: zoom-in; }
 
+/* ---------- the cat's eggs, and the loader ---------- */
+.pop-cat { cursor: pointer; }
+.popcount { position: fixed; z-index: 45; pointer-events: none; opacity: 0; transition: opacity .35s;
+  background: #161411; color: #fff; font: 700 13px/1 var(--font-mono); padding: 6px 9px; letter-spacing: .06em; }
+.popcount b { color: #FFD21F; font-size: 16px; }
+.popcount.on { opacity: 1; }
+.popcount.bump { animation: bump .22s var(--ease-out); }
+@keyframes bump { from { transform: scale(1.25); } to { transform: scale(1); } }
+.ptr { position: fixed; left: 50%; top: var(--frame-top); z-index: 19; opacity: 0; transform: translate(-50%, -70px); pointer-events: none; }
+.ptr .cat { width: 58px; height: 58px; display: block; }
+@media (max-width: 700px) { .ptr .cat { width: 48px; height: 48px; } }
+.loading { display: grid; place-items: center; padding: 90px 0; }
+.loading .cat { width: 96px; height: 96px; }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
+  transition: none !important; animation: none !important; }
