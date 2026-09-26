@@ -86,6 +86,17 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
                 response.set_cookie(TOKEN_COOKIE, token, httponly=True, samesite="strict")
             return response
 
+    @app.middleware("http")  # added last, so it runs outermost: the 400s and 401s above get the headers too
+    async def _security_headers(request: Request, call_next):
+        response = await call_next(request)
+        # No other site may frame the app (a hidden frame could be clicked into 删除图集), sniff a response
+        # into a script, or see a ?token= link in its Referer.
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Content-Security-Policy", "frame-ancestors 'none'")
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        return response
+
     @app.exception_handler(CollectionError)
     @app.exception_handler(SettingsError)
     async def _bad_change(request: Request, exc: Exception):
@@ -129,7 +140,10 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
             script = script.replace('"__MEMESEEKS_KEY__"', json.dumps(inbox.key()))
             script = script.replace('"__MEMESEEKS_POPCAT__"', POPCAT.read_text(encoding="utf-8")
                                     .split("window.POPCAT = ", 1)[1].rstrip().rstrip(";"))  # the cat's shapes
-            return Response(script, media_type="text/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+            # text/plain with nosniff, as raw.githubusercontent.com serves userscripts: a userscript manager
+            # installs it from the .user.js link, but no web page can run it with <script src>, where
+            # stand-in GM_* functions could catch the inbox key
+            return Response(script, media_type="text/plain; charset=utf-8", headers={"Cache-Control": "no-store"})
 
         def _has_key(request: Request) -> bool:
             # Only the browser script knows this key. Ordinary web pages can't send a custom header

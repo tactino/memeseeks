@@ -15,7 +15,10 @@ needs_node = pytest.mark.skipif(NODE is None, reason="node is not installed")
 def test_served_script_carries_this_server_and_the_inbox_key(tmp_path):
     client, inbox, _, _ = _setup(tmp_path)
     r = client.get("/api/inbox/memeseeks.user.js")
-    assert r.status_code == 200 and r.headers["content-type"].startswith("text/javascript")
+    # text/plain + nosniff, like raw.githubusercontent.com: userscript managers install it, but no page can
+    # run it with <script src> (with stand-in GM_* functions it would hand over the inbox key)
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
+    assert r.headers["x-content-type-options"] == "nosniff"
     assert "__MEMESEEKS_" not in r.text
     assert f'const SERVER = "http://127.0.0.1";' in r.text and json.dumps(inbox.key()) in r.text
     assert "// ==UserScript==" in r.text.splitlines()[0]  # what makes userscript managers offer to install it

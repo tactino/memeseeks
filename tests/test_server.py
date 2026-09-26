@@ -123,3 +123,14 @@ def test_service_worker_is_network_first_so_updates_are_never_stuck():
     assert re.search(r"respondWith\(\s*fetch\(event\.request\)", handler)  # network first
     assert handler.index(".catch(") < handler.index("caches.match")         # cache only when offline
     assert '"memeseeks-shell-v1"' not in sw                                 # new name drops the old cache
+
+
+def test_other_sites_cannot_frame_the_app_or_sniff_its_responses(tmp_path):
+    from tests.test_albums_api import _setup
+
+    client, *_ = _setup(tmp_path)
+    for path in ("/", "/api/albums", "/app.js"):
+        h = client.get(path).headers
+        assert h["x-frame-options"] == "DENY" and "frame-ancestors 'none'" in h["content-security-policy"]
+        assert h["x-content-type-options"] == "nosniff"
+        assert h["referrer-policy"] == "same-origin"   # a ?token= link never reaches another site
