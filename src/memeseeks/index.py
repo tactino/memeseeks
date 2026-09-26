@@ -15,7 +15,7 @@ from .images import ImageRecord, load_image
 from .models.ocr import OcrLine, ocr_text
 from .models.vlm import description_text
 
-CLIP_CHUNK = 64
+CLIP_CHUNK = 16  # images per batch; also how often indexing progress moves in the CLIP stage
 
 
 def _tmp_for(path: Path) -> Path:
@@ -56,9 +56,11 @@ def _reconcile(ids: list[str], vecs):
     return ids[:n], (vecs[:n] if n else None)
 
 
-def _jsonl_stage(records, path: Path, fn, name: str, log) -> None:
+def _jsonl_stage(records, path: Path, fn, name: str, log, progress=None) -> None:
     done = _read_jsonl(path)
     todo = [r for r in records if r.id not in done]
+    if todo and progress:
+        progress(name, 0, len(todo))
     if path.exists() and path.stat().st_size and not path.read_bytes().endswith(b"\n"):
         with path.open("a", encoding="utf-8") as f:
             f.write("\n")  # never append onto a half-written line
@@ -70,6 +72,8 @@ def _jsonl_stage(records, path: Path, fn, name: str, log) -> None:
                 value = {"_error": f"{type(exc).__name__}: {exc}"}
             f.write(json.dumps({"id": rec.id, "relpath": rec.relpath, "value": value}, ensure_ascii=False) + "\n")
             f.flush()
+            if progress:
+                progress(name, i, len(todo))
             if i % 10 == 0 or i == len(todo):
                 log(f"{name}: {i}/{len(todo)}")
 
@@ -89,7 +93,7 @@ def _embed_chunk(clip, chunk, errors: dict[str, str]):
         return kept, (np.concatenate(rows) if rows else None)
 
 
-def _clip_stage(records, out: Path, clip, log) -> None:
+def _clip_stage(records, out: Path, clip, log, progress=None) -> None:
     ids_path, vec_path, err_path = out / "clip_ids.json", out / "clip.npy", out / "clip_errors.json"
     ids = json.loads(ids_path.read_text(encoding="utf-8")) if ids_path.exists() else []
     vecs = np.load(vec_path) if vec_path.exists() else None
@@ -97,6 +101,8 @@ def _clip_stage(records, out: Path, clip, log) -> None:
     ids, vecs = _reconcile(ids, vecs)
     done = set(ids) | set(errors)  # failed images are recorded, not retried; delete clip_errors.json to retry
     todo = [r for r in records if r.id not in done]
+    if todo and progress:
+        progress("clip", 0, len(todo))
     for start in range(0, len(todo), CLIP_CHUNK):
         kept, new = _embed_chunk(clip, todo[start:start + CLIP_CHUNK], errors)
         if new is not None:
@@ -106,19 +112,22 @@ def _clip_stage(records, out: Path, clip, log) -> None:
             _atomic_write_text(ids_path, json.dumps(ids))
         if errors:
             _atomic_write_text(err_path, json.dumps(errors, ensure_ascii=False))
+        if progress:
+            progress("clip", min(start + CLIP_CHUNK, len(todo)), len(todo))
         log(f"clip: {len(ids)} embedded, {len(errors)} failed, of {len(records)}")
 
 
-def build_index(records: list[ImageRecord], out_dir, ocr=None, vlm=None, clip=None, log=print) -> None:
+def build_index(records: list[ImageRecord], out_dir, ocr=None, vlm=None, clip=None, log=print, progress=None) -> None:
+    """progress(stage, done, total), if given, is called as each stage works through the new images."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     _atomic_write_text(out / "relpaths.json", json.dumps({r.id: r.relpath for r in records}, ensure_ascii=False))
     if ocr is not None:
-        _jsonl_stage(records, out / "ocr.jsonl", lambda im: [asdict(line) for line in ocr(im)], "ocr", log)
+        _jsonl_stage(records, out / "ocr.jsonl", lambda im: [asdict(line) for line in ocr(im)], "ocr", log, progress)
     if vlm is not None:
-        _jsonl_stage(records, out / "vlm.jsonl", vlm.describe, "vlm", log)
+        _jsonl_stage(records, out / "vlm.jsonl", vlm.describe, "vlm", log, progress)
     if clip is not None:
-        _clip_stage(records, out, clip, log)
+        _clip_stage(records, out, clip, log, progress)
 
 
 @dataclass

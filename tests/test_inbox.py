@@ -104,7 +104,7 @@ def test_indexer_picks_up_new_files_after_a_quiet_moment(tmp_path):
     now[0] += 5
     assert idx.tick() is True
     assert len(lib.paths()) == 2 and idx.status() == {"pending": False, "running": False, "last_error": None,
-                                                       "last_images": 2}
+                                                       "last_images": 2, "progress": None}
     assert idx.tick() is False  # nothing new
 
 

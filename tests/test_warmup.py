@@ -92,10 +92,61 @@ def test_search_waits_for_the_models_and_the_page_can_ask(tmp_path):
     r = waiting.get("/api/search", params={"q": "猫"})
     assert r.status_code == 503 and "error" in r.json()
     assert waiting.get("/api/albums").status_code == 200                 # everything else works meanwhile
-    assert client.get("/api/ready").json() == {"state": "ready", "download": None, "error": None}
+    got = client.get("/api/ready").json()
+    assert (got["state"], got["download"], got["error"]) == ("ready", None, None)
 
 
 def test_the_model_wrappers_never_download_a_model_twice():
     import memeseeks.models  # noqa: F401
 
     assert os.environ.get("DISABLE_SAFETENSORS_CONVERSION") == "true"
+
+
+def test_indexing_reports_how_far_it_has_got(tmp_path):
+    from memeseeks.library import Library
+    from tests.fakes import FakeBge, FakeClip, FakeOcr, solid
+
+    for k in range(3):
+        solid(tmp_path / "memes", f"{k}.png", (255, k, 0))
+    lib = Library(tmp_path / "lib")
+    lib.add_source(tmp_path / "memes")
+    calls = []
+    lib.update(Models(ocr=FakeOcr(), clip=FakeClip(), bge=FakeBge()), log=lambda m: None,
+               progress=lambda stage, done, total: calls.append((stage, done, total)))
+    assert calls[0] == ("ocr", 0, 3) and ("ocr", 3, 3) in calls and calls[-1] == ("clip", 3, 3)
+    calls.clear()
+    lib.update(Models(ocr=FakeOcr(), clip=FakeClip(), bge=FakeBge()), log=lambda m: None,
+               progress=lambda *a: calls.append(a))
+    assert calls == []                                                    # nothing new: nothing to report
+
+
+def test_the_indexer_shows_its_progress_while_it_runs(tmp_path):
+    import contextlib
+
+    from memeseeks.indexer import BackgroundIndexer
+    from memeseeks.library import Library
+    from tests.fakes import FakeBge, FakeClip, FakeOcr, solid
+
+    solid(tmp_path / "memes", "a.png", (255, 0, 0))
+    solid(tmp_path / "memes", "b.png", (0, 0, 255))
+    lib = Library(tmp_path / "lib")
+    lib.add_source(tmp_path / "memes")
+    seen = []
+
+    class Watching(FakeOcr):
+        def __call__(self, image):
+            seen.append(indexer.status()["progress"])
+            return super().__call__(image)
+
+    indexer = BackgroundIndexer(lib, Models(ocr=Watching(), clip=FakeClip(), bge=FakeBge()), debounce=0,
+                                clock=lambda: 0.0, priority=contextlib.nullcontext)
+    indexer.request()
+    assert indexer.tick() is True
+    assert seen == [{"stage": "ocr", "done": 0, "total": 2}, {"stage": "ocr", "done": 1, "total": 2}]
+    assert indexer.status()["progress"] is None and indexer.status()["last_images"] == 2
+
+
+def test_ready_carries_the_indexing_state(tmp_path):
+    client, _, indexer, _ = _setup(tmp_path)
+    got = client.get("/api/ready").json()
+    assert got["state"] == "ready" and set(got["indexing"]) >= {"pending", "running", "progress"}

@@ -170,6 +170,10 @@ downloading them (about 3.9 GB), so a bar under the header says how far it has g
 search already works; a search made meanwhile shows the loader and runs by itself once the models are in.
 If they cannot be fetched, the bar turns red and says why (from China: set `HF_ENDPOINT` to a mirror).
 
+The same bar then shows the background indexing (`正在建立索引：30 / 500 张`, step 1 reading the text, step
+2 looking at the picture), since a first folder on a CPU takes about an hour per 1,000 memes. When it is
+done, 首页, 图集 and 全部 reload their memes by themselves (unless you are typing).
+
 ## The browser collector (采集 meme)
 
 It runs on other people's sites, so it stays small and isolated: a shadow root, system fonts only, short

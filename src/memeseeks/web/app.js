@@ -143,18 +143,8 @@ async function upload(files, album) {
   const into = album ? `「${album.name}」` : "图库";
   const parts = [added && `已上传 ${added} 张到${into}，建好索引后就会出现`, had && `${had} 张本来就在图库里`, failed.length && `${failed.length} 张没传上：${failed[0]}`];
   toast(parts.filter(Boolean).join("；"), failed.length > 0);
-  if (added) whenIndexed(location.search);
+  if (added) watchReady();  // the bar shows the indexing; the page refreshes when it is done
   else if (had && album) render({ slide: false });
-}
-
-async function whenIndexed(page) {  // show the new memes once the server has indexed them, if still on that page
-  for (let i = 0; i < 400; i++) {
-    await new Promise((r) => setTimeout(r, 1500));
-    const s = await api("/api/status").catch(() => null);
-    if (!s || !s.indexing) return;  // started with --no-watch: nothing indexes in the background
-    if (!s.indexing.pending && !s.indexing.running) break;
-  }
-  if (location.search === page) render({ slide: false });
 }
 
 function uploadButton(album) {
@@ -543,7 +533,7 @@ async function settingsPage() {
   const add = h("form.add-folder", {}, path, h("button.btn", { type: "submit", text: "添加" }));
   add.addEventListener("submit", async (e) => {
     e.preventDefault();
-    try { showFolders(await request("POST", "/api/sources", { path: path.value })); path.value = ""; toast("已添加，正在建立索引"); } catch (err) { toast(err.message, true); }
+    try { showFolders(await request("POST", "/api/sources", { path: path.value })); path.value = ""; toast("已添加，正在建立索引"); watchReady(); } catch (err) { toast(err.message, true); }
   });
 
   return [h("div.results-head", {}, h("h1.page-title", { text: "设置" }), h("span.meta", { text: "保存在图库里，用手机打开也一样" })),
@@ -641,29 +631,46 @@ function loader() {
   return h("div.loading", { role: "status" }, cat, h("span.visually-hidden", { text: "正在加载" }));
 }
 
-// ---------------- the first run: the models download while everything but search already works ----------------
+// ---------------- work behind the page: the models (downloading on the first run), then indexing ----------------
 const readyBar = h("div.readybar", { role: "status", hidden: true });
 $(".bar").after(readyBar);
-let modelsReady = true;
+let modelsReady = true, wasIndexing = false, readyTimer = null;
 const gb = (n) => (n / 1e9).toFixed(1);
-async function watchReady() {
+const STAGES = { ocr: "第 1 步：识别图里的文字", vlm: "写图的描述", clip: "第 2 步：看图" };
+
+function showBar(text, share, error = false) {
+  readyBar.replaceChildren(h("span", { text }),
+    ...(share === null ? [] : [h("div.track", {}, h("i", { style: `width: ${(Math.min(0.99, share) * 100).toFixed(1)}%` }))]));
+  readyBar.classList.toggle("error", error);
+  readyBar.hidden = false;
+}
+
+async function watchReady() {  // checks often while something runs, now and then otherwise (new files in a folder)
+  clearTimeout(readyTimer);
   let s;
-  try { s = await api("/api/ready"); } catch (err) { return; }
+  try { s = await api("/api/ready"); } catch (err) { readyTimer = setTimeout(watchReady, 10000); return; }
   const was = modelsReady;
   modelsReady = s.state === "ready";
-  if (modelsReady) {
-    readyBar.hidden = true;
-    if (!was && route().view === "search") render({ slide: false });  // the search that had to wait
+  if (!modelsReady) {
+    const d = s.download;
+    if (s.state === "error") { showBar(`模型没能加载：${s.error}`, null, true); return; }  // needs a restart
+    showBar(d ? `第一次启动，正在下载模型：${gb(d.done)} / 约 ${gb(d.total)} GB。下完就能搜索，其他功能现在就能用。`
+      : "正在加载模型，马上就能搜索。", d ? d.done / d.total : null);
+    readyTimer = setTimeout(watchReady, 1500);
     return;
   }
-  const d = s.download, share = d ? Math.min(0.99, d.done / d.total) : 0;
-  const text = s.state === "error" ? `模型没能加载：${s.error}`
-    : d ? `第一次启动，正在下载模型：${gb(d.done)} / 约 ${gb(d.total)} GB。下完就能搜索，其他功能现在就能用。`
-      : "正在加载模型，马上就能搜索。";
-  readyBar.replaceChildren(h("span", { text }), ...(d ? [h("div.track", {}, h("i", { style: `width: ${(share * 100).toFixed(1)}%` }))] : []));
-  readyBar.classList.toggle("error", s.state === "error");
-  readyBar.hidden = false;
-  if (s.state === "loading") setTimeout(watchReady, 1500);
+  if (!was && route().view === "search") render({ slide: false });  // the search that had to wait
+  const ix = s.indexing, busy = Boolean(ix && (ix.running || ix.pending)), p = ix && ix.progress;
+  if (busy) wasIndexing = true;
+  if (busy && p && p.total) {
+    showBar(`正在建立索引：${p.done} / ${p.total} 张（${STAGES[p.stage] || p.stage}）。建好后就能搜到，不用在这里等。`, p.done / p.total);
+  } else readyBar.hidden = true;
+  if (wasIndexing && !busy) {  // done: pages that list memes pick up the new ones, unless you are typing
+    wasIndexing = false;
+    const typing = document.activeElement && document.activeElement.matches("input, textarea, select");
+    if (!typing && ["home", "albums", "album"].includes(route().view)) render({ slide: false });
+  }
+  readyTimer = setTimeout(watchReady, busy ? 1500 : 10000);
 }
 watchReady();
 

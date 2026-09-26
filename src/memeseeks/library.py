@@ -112,7 +112,7 @@ class Library:
                 records.append(rec)
         return records, report
 
-    def update(self, models: Models, log=print, retry_failed: bool = False) -> dict:
+    def update(self, models: Models, log=print, retry_failed: bool = False, progress=None) -> dict:
         records, report = self.records()
         if not records:  # e.g. an empty or mistyped folder: don't load (or download) any model
             if self.index_dir.exists():
@@ -127,14 +127,14 @@ class Library:
             report["retried"] = drop_failures(self.index_dir)
         _atomic_write_text(self.index_dir / "paths.json",
                            json.dumps({r.id: str(r.path) for r in records}, ensure_ascii=False))
-        build_index(records, self.index_dir, ocr=ocr, clip=clip, log=log)
+        build_index(records, self.index_dir, ocr=ocr, clip=clip, log=log, progress=progress)
         if self.config()["vlm"]:
             try:
                 vlm = models.get("vlm")
             except Exception as exc:  # e.g. no GPU on this machine: index everything else, report it
                 report["vlm_error"] = f"{type(exc).__name__}: {exc}"
             else:
-                build_index(records, self.index_dir, vlm=vlm, log=log)
+                build_index(records, self.index_dir, vlm=vlm, log=log, progress=progress)
         build_text_vectors(load_index(self.index_dir), self.index_dir, bge, log=log)
         report["images"] = len(records)
         report["failed"] = failure_counts(self.index_dir)

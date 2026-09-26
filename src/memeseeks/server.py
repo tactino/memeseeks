@@ -102,8 +102,10 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
 
     @app.get("/api/ready")
     def ready():
-        # the first run downloads the models: the page shows how far it has got (see warmup.py)
-        return warmup.status() if warmup is not None else {"state": "ready", "download": None, "error": None}
+        # what the page shows under the header: the models (downloading on the first run, see warmup.py) and
+        # the background indexing. Never reads the index, so it answers for an empty library too.
+        found = warmup.status() if warmup is not None else {"state": "ready", "download": None, "error": None}
+        return {**found, "indexing": indexer.status() if indexer is not None else None}
 
     @app.get("/api/search")
     def search(q: str = Query(..., min_length=1), maybe: int = Query(12, ge=0, le=60)):
