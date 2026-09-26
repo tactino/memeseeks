@@ -10,3 +10,5 @@ label.html
 .memeseeks-dev.env
 .env
 docs/superpowers/
+/build/
+/dist/
