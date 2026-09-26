@@ -18,6 +18,24 @@ On the maintainer's text-heavy collection the first two routes already find ever
 
 ## Install
 
+**Windows** — open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1 | iex
+```
+
+**macOS / Linux:**
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.sh | sh
+```
+
+It installs into one folder with its own Python (Windows `%LOCALAPPDATA%\memeseeks`, macOS `~/Library/Application Support/memeseeks`, Linux `~/.local/share/memeseeks`), adds a 迷因捕手 shortcut and starts it. The first start downloads about 3.9 GB of models; the web app shows the progress. From China it switches to mirrors by itself (PyPI, Python and the models). Nothing is added to PATH; to uninstall, delete that folder and the shortcut — your library, in `~/.memeseeks`, stays. Run the same line again to update.
+
+To install somewhere else: on Windows `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1))) -Dir D:\memeseeks`; on macOS / Linux put `MEMESEEKS_DIR=/some/folder` in front of `sh`.
+
+### By hand
+
 Python 3.10 or newer.
 
 ```bash
