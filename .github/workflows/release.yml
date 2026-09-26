@@ -1,0 +1,64 @@
+name: release
+
+# Push a tag like v0.3.0: build, check the version matches, publish to PyPI (trusted publishing: no token
+# stored here), and make a GitHub release whose notes are that version's section of CHANGELOG.md.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: the tag is the package's version
+        run: |
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME, pyproject.toml $version"; exit 1; }
+      - run: pip install -e ".[dev]" build
+      - run: python -m pytest -q
+        env:
+          MEMESEEKS_PRIVATE_STRINGS: ${{ secrets.MEMESEEKS_PRIVATE_STRINGS }}
+      - run: python -m build
+      - name: the wheel has the web app in it
+        run: python -m zipfile -l dist/*.whl | grep -q "memeseeks/web/index.html"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: notes from CHANGELOG.md
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## " v "([（( ]|$)" {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          test -s notes.md
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}

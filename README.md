@@ -1,6 +1,6 @@
 # 迷因捕手 · memeseeks
 
-[English](README.en.md)
+[English](https://github.com/tactino/memeseeks/blob/main/README.en.md)
 
 说出你记得的那句话，从自己的收藏里把那张梗图找回来。中英文都能搜，程序跑在你自己的电脑上；同时搜网上是可选的，默认关闭。
 
