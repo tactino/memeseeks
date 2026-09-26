@@ -679,7 +679,7 @@ const readyBar = h("div.readybar", { role: "status", hidden: true });
 $(".bar").after(readyBar);
 let modelsReady = true, wasIndexing = false, readyTimer = null;
 const gb = (n) => (n / 1e9).toFixed(1);
-const STAGES = { ocr: "第 1 步：识别图里的文字", vlm: "写图的描述", clip: "第 2 步：看图" };
+const STAGES = { ocr: "第 1 步：识别图里的文字", vlm: "写图的描述", tidy: "整理图里的文字", clip: "第 2 步：看图" };
 
 function showBar(text, share, error = false) {
   readyBar.replaceChildren(h("span", { text }),

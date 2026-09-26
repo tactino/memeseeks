@@ -32,14 +32,17 @@ def _make(name: str):
     if name == "vlm":
         from .models.vlm import QwenVl
         return QwenVl()
+    if name == "tidy":
+        from .tidy import Tidier
+        return Tidier()
     raise KeyError(name)
 
 
 class Models:
     """Model wrappers, built on first use; tests pass fakes."""
 
-    def __init__(self, ocr=None, clip=None, bge=None, vlm=None):
-        self._models = {"ocr": ocr, "clip": clip, "bge": bge, "vlm": vlm}
+    def __init__(self, ocr=None, clip=None, bge=None, vlm=None, tidy=None):
+        self._models = {"ocr": ocr, "clip": clip, "bge": bge, "vlm": vlm, "tidy": tidy}
         self._lock = threading.Lock()  # the warm-up, the indexer and a search may all ask at once
 
     def get(self, name: str):
@@ -57,7 +60,7 @@ class Library:
 
     def config(self) -> dict:
         path = self.root / "library.json"
-        cfg = {"sources": [], "vlm": False}
+        cfg = {"sources": [], "vlm": False, "tidy": False}
         if path.exists():
             try:
                 cfg.update(json.loads(path.read_text(encoding="utf-8")))
@@ -91,6 +94,11 @@ class Library:
     def set_vlm(self, on: bool) -> None:
         cfg = self.config()
         cfg["vlm"] = bool(on)
+        self._save(cfg)
+
+    def set_tidy(self, on: bool) -> None:
+        cfg = self.config()
+        cfg["tidy"] = bool(on)
         self._save(cfg)
 
     def records(self) -> tuple[list[ImageRecord], dict]:
@@ -135,6 +143,13 @@ class Library:
                 report["vlm_error"] = f"{type(exc).__name__}: {exc}"
             else:
                 build_index(records, self.index_dir, vlm=vlm, log=log, progress=progress)
+        if self.config()["tidy"]:
+            try:
+                tidier = models.get("tidy")
+            except Exception as exc:  # no GPU here: the rule-based text stays
+                report["tidy_error"] = f"{type(exc).__name__}: {exc}"
+            else:
+                build_index(records, self.index_dir, tidy=tidier, log=log, progress=progress)
         build_text_vectors(load_index(self.index_dir), self.index_dir, bge, log=log)
         report["images"] = len(records)
         report["failed"] = failure_counts(self.index_dir)

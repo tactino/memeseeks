@@ -87,6 +87,7 @@ More:
 
 ```bash
 memeseeks add ~/Pictures/memes --vlm      # also describe images with the local VLM (GPU); --no-vlm turns it off
+memeseeks add ~/Pictures/memes --tidy     # tidy each meme's text with a vision-language model (a GPU with ~20 GB)
 memeseeks add ~/Pictures/memes --retry-failed   # redo images that failed a step last time
 memeseeks search "cat judging you" -k 5 --json
 memeseeks eval queries.csv                # score your own queries (see below)

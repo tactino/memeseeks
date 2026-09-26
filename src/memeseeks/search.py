@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from .evalkit import load_qrels, rrf_scores, score_methods
-from .index import load_index, load_text_vectors, route_texts
+from .index import display_texts, load_index, load_text_vectors, route_texts
 from .retrieval import rank_by_vectors
 
 
@@ -59,7 +59,7 @@ class Searcher:
         self.ids = sorted(self.paths)
         current = set(self.ids)
         self.relpath = {i: idx.relpath.get(i, Path(self.paths[i]).name) for i in self.ids}
-        self.text = {i: t for i, t in route_texts(idx)["ocr"].items() if i in current}
+        self.text = {i: t for i, t in display_texts(idx).items() if i in current}  # what a meme's page shows
         keep = [k for k, i in enumerate(idx.clip_ids) if i in current]
         self.clip_ids = [idx.clip_ids[k] for k in keep]
         self.clip = idx.clip[keep] if keep else np.zeros((0, 0), np.float32)

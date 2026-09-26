@@ -171,6 +171,12 @@ everything OCR read: platform watermarks, the account, time and counters of a sc
 buttons and noise are left out, and wrapped lines are joined back into sentences, one per line. Search and
 相似的梗 use the same text (`maintext.py`; numbers in `experiments/results/maintext.md`).
 
+Where a GPU is available, a vision-language model writes the text out instead (`tidy.py`, `memeseeks add
+--tidy`; for a library on a computer without one, `scripts/tidy_remote.py` runs it on another): misread
+characters put right, a dialogue one line each as `- …`, a comment or reply as `【评论】名字：…`, a translation
+without its original. The meme page shows that text; search keeps the rules' text, which matched the
+maintainer's queries a little better (`experiments/results/tidy.md`).
+
 ## First run
 
 The server listens at once; the models load behind it (`warmup.py`). On the first run that means

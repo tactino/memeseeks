@@ -22,7 +22,7 @@ from .settings import Settings
 
 THUMB_QUALITY = 82
 # Everything a Searcher reads: if any of these changed, rebuild it (an add writes them over minutes).
-_WATCHED = ["paths.json", "relpaths.json", "ocr.jsonl", "vlm.jsonl", "clip_ids.json", "clip.npy",
+_WATCHED = ["paths.json", "relpaths.json", "ocr.jsonl", "vlm.jsonl", "tidy.jsonl", "clip_ids.json", "clip.npy",
             "text_ocr.json", "text_vlm.json"]
 
 

@@ -20,7 +20,7 @@ _ENDS = "。！？!?…；;"
 
 _PLATFORMS = {"小红书", "红书", "抖音", "快手", "微博", "知乎", "bilibili", "哔哩哔哩", "b站", "微信", "豆瓣", "贴吧",
               "tiktok", "instagram", "twitter", "weibo", "xiaohongshu"}
-_ACCOUNT_ID = re.compile(r"(书号|红号|抖音号|快手号|微信号|微博号|视频号|b站号|uid)\s*[:：]?|(微博|微信|b站|id)\s*[:：]", re.I)
+_ACCOUNT_ID = re.compile(r"(书号|红号|抖音号|快手号|微信号|微博号|视频号|b站号|uid)\s*[:：]?|(微博|微信|b站|id|小红书|红书|抖音|快手|哔哩哔哩)\s*[:：]", re.I)
 _ACCOUNT = re.compile(r"@\S|[\w.+-]+@[\w-]+\.\w+|https?://|www\.|\b[\w-]+\.(?:com|org|net|cn|io|me)\b", re.I)
 _CHROME = re.compile(r"^(follow|following|关注|已关注|\+关注|跟隨|跟随|translate ?tweet|翻译推文|查看翻译|share|分享|转发|评论|点赞|"
                      r"收藏|回复|显示回复|查看回复|查看动态>?|热门|简介|帖子|貼文|更多|reply|retweet|repost|like|likes|"
@@ -29,7 +29,7 @@ _CHROME = re.compile(r"^(follow|following|关注|已关注|\+关注|跟隨|跟�
 # 20,108 notes / 99Retweets181Likes / 59萬次查看
 _COUNTS = re.compile(r"\d[\d,.]*\s*(?:[万萬千kKwW])?\s*(?:notes?|retweets?|likes?|views?|comments?|replies|次查看|次播放|次观看|人看过)", re.I)
 # credits for whoever translated or reposted it: 翻/製：… / 译@…
-_CREDIT = re.compile(r"^(翻译|翻譯|翻/製|翻/制|翻制|翻製|译|譯|搬运|搬運|转载|轉載|来源|出处|via|cr|credit)\s*[:：@]|^[:：]\s*\S{1,8}$", re.I)
+_CREDIT = re.compile(r"^(翻译|翻譯|翻/製|翻/制|翻制|翻製|译|譯|搬运|搬運|转载|轉載|来源|出处|via|cr|credit)\s*[:：@]|^[:：]\s*\S{1,8}$|^(photo|photos|odai|art|illustration|drawn|video|image|source)\s+by\b", re.I)
 _MONTH = re.compile(r"(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?[\s\d,]*", re.I)
 # what OCR makes of 小红书 when it misreads it: 小红节, 小红书具, 红书
 _XHS = re.compile(r"^小?红.?书.?$|^小红.$")

@@ -33,6 +33,10 @@ def _parser() -> argparse.ArgumentParser:
     v = a.add_mutually_exclusive_group()
     v.add_argument("--vlm", action="store_true", help="from now on also describe images with a local VLM (needs a GPU)")
     v.add_argument("--no-vlm", action="store_true", help="stop using the VLM for this library")
+    t = a.add_mutually_exclusive_group()
+    t.add_argument("--tidy", action="store_true",
+                   help="from now on also tidy each meme's text with a local vision-language model (needs a GPU with ~20 GB)")
+    t.add_argument("--no-tidy", action="store_true", help="stop tidying text with the model for this library")
     a.add_argument("--retry-failed", action="store_true", help="redo images that failed a step last time")
     s = sub.add_parser("search", help="search the library")
     s.add_argument("query")
@@ -218,23 +222,27 @@ def _status(lib: Library, models: Models) -> None:
     print(f"images: {len(searcher.ids) if searcher else 0}")
     print(f"with text: {len(searcher.text) if searcher else 0}")
     print(f"vlm: {'on' if cfg['vlm'] else 'off'}")
+    print(f"tidy: {'on' if cfg['tidy'] else 'off'}")
     if lib.index_dir.exists():
         counts = failure_counts(lib.index_dir)
         print("failed: " + ", ".join(f"{stage} {n}" for stage, n in counts.items()))
 
 
 def _add(lib: Library, models: Models, folder: str, vlm: bool = False, no_vlm: bool = False,
-         retry_failed: bool = False) -> int:
+         retry_failed: bool = False, tidy: bool = False, no_tidy: bool = False) -> int:
     if not Path(folder).is_dir():
         return _fail(f"{folder} is not a folder")
-    if vlm:
-        try:
-            models.get("vlm")  # load before saving the setting, so a failure leaves it off
-        except Exception as exc:
-            return _fail(f"cannot load the VLM ({type(exc).__name__}: {exc}); it stays off")
+    for wanted, name, what in ((vlm, "vlm", "the VLM"), (tidy, "tidy", "the model that tidies text")):
+        if wanted:
+            try:
+                models.get(name)  # load before saving the setting, so a failure leaves it off
+            except Exception as exc:
+                return _fail(f"cannot load {what} ({type(exc).__name__}: {exc}); it stays off")
     lib.add_source(folder)
     if vlm or no_vlm:
         lib.set_vlm(vlm)
+    if tidy or no_tidy:
+        lib.set_tidy(tidy)
     report = lib.update(models, retry_failed=retry_failed)
     if report["images"] == 0:
         print(f"no images found in {folder} (jpg, png, gif, webp, bmp, heic); nothing to index")
@@ -246,6 +254,9 @@ def _add(lib: Library, models: Models, folder: str, vlm: bool = False, no_vlm: b
         detail = ", ".join(f"{stage} {n}" for stage, n in failed.items())
         print(f"{sum(failed.values())} image(s) failed a step ({detail}); they are still found through the "
               "other steps. Run `memeseeks add <folder> --retry-failed` to redo them.")
+    if "tidy_error" in report:
+        print(f"warning: the model that tidies text is unavailable ({report['tidy_error']}); "
+              "use --no-tidy to turn it off", file=sys.stderr)
     if "vlm_error" in report:
         print(f"warning: VLM unavailable, descriptions skipped ({report['vlm_error']}); "
               "use --no-vlm to turn it off", file=sys.stderr)
@@ -268,7 +279,7 @@ def main(argv=None, models: Models | None = None) -> int:
     models = models or Models()
     try:
         if args.cmd == "add":
-            return _add(lib, models, args.folder, args.vlm, args.no_vlm, args.retry_failed)
+            return _add(lib, models, args.folder, args.vlm, args.no_vlm, args.retry_failed, args.tidy, args.no_tidy)
         elif args.cmd == "run":
             problem = _exposure_problem(args.host, args.token) or _online_problem(args.online)  # before indexing
             if problem:

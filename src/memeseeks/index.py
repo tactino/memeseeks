@@ -6,7 +6,7 @@ import hashlib
 import json
 import os
 import threading
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -118,7 +118,8 @@ def _clip_stage(records, out: Path, clip, log, progress=None) -> None:
         log(f"clip: {len(ids)} embedded, {len(errors)} failed, of {len(records)}")
 
 
-def build_index(records: list[ImageRecord], out_dir, ocr=None, vlm=None, clip=None, log=print, progress=None) -> None:
+def build_index(records: list[ImageRecord], out_dir, ocr=None, vlm=None, clip=None, tidy=None, log=print,
+                progress=None) -> None:
     """progress(stage, done, total), if given, is called as each stage works through the new images."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -127,6 +128,8 @@ def build_index(records: list[ImageRecord], out_dir, ocr=None, vlm=None, clip=No
         _jsonl_stage(records, out / "ocr.jsonl", lambda im: [asdict(line) for line in ocr(im)], "ocr", log, progress)
     if vlm is not None:
         _jsonl_stage(records, out / "vlm.jsonl", vlm.describe, "vlm", log, progress)
+    if tidy is not None:  # the text tidied by a vision-language model (tidy.py)
+        _jsonl_stage(records, out / "tidy.jsonl", tidy, "tidy", log, progress)
     if clip is not None:
         _clip_stage(records, out, clip, log, progress)
 
@@ -138,6 +141,7 @@ class LoadedIndex:
     clip_ids: list[str]
     clip: np.ndarray
     relpath: dict[str, str]
+    tidy: dict[str, object] = field(default_factory=dict)  # tidy.py's text, where it ran
 
 
 def load_index(out_dir, vlm_file: str = "vlm.jsonl") -> LoadedIndex:
@@ -151,6 +155,7 @@ def load_index(out_dir, vlm_file: str = "vlm.jsonl") -> LoadedIndex:
         clip_ids=ids,
         clip=vecs if vecs is not None else np.zeros((0, 0), np.float32),
         relpath=json.loads((out / "relpaths.json").read_text(encoding="utf-8")) if (out / "relpaths.json").exists() else {},
+        tidy={k: v["value"] for k, v in _read_jsonl(out / "tidy.jsonl").items()},
     )
 
 
@@ -163,6 +168,14 @@ def route_texts(idx: LoadedIndex) -> dict[str, dict[str, str]]:
     vlm = {i: description_text(v) for i, v in idx.vlm.items() if isinstance(v, dict) and "_error" not in v}
     return {"ocr": {i: t for i, t in ocr.items() if t.strip()},
             "vlm": {i: t for i, t in vlm.items() if t.strip()}}
+
+
+def display_texts(idx: LoadedIndex) -> dict[str, str]:
+    """What the meme page shows: the text a vision-language model tidied (tidy.py) where it ran, else the rules'
+    text. Search keeps the rules' text: on the maintainer's queries it matched a little better (tidy.md)."""
+    shown = dict(route_texts(idx)["ocr"])
+    shown.update({i: t for i, t in idx.tidy.items() if isinstance(t, str) and t.strip()})
+    return shown
 
 
 def build_text_vectors(idx: LoadedIndex, out_dir, embedder, log=print) -> None:
