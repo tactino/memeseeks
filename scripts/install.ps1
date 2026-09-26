@@ -2,8 +2,12 @@
 #
 #   irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1 | iex
 #
-# With options (another folder, say):
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1))) -Dir D:\memeseeks
+# With options, say nothing on drive C:
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1))) -Dir D:\memeseeks -Library D:\memeseeks-library
+#
+#   -Dir      the program, its Python and (unless -Models) the models   default %LOCALAPPDATA%\memeseeks
+#   -Library  your memes' index, 图集 and collected images              default %USERPROFILE%\.memeseeks
+#   -Models   the Hugging Face cache, e.g. one you already have         default <Dir>\models
 #
 # (This file is UTF-8 without a BOM, as irm | iex needs; Windows PowerShell would misread it with -File.)
 #
@@ -14,6 +18,8 @@
 
 param(
   [string]$Dir = (Join-Path $env:LOCALAPPDATA "memeseeks"),
+  [string]$Library = "",
+  [string]$Models = "",
   [ValidateSet("auto", "on", "off")] [string]$Mirror = "auto",
   [string]$Source = "https://github.com/tactino/memeseeks/archive/refs/heads/main.zip",
   [string[]]$ShortcutDirs = @([Environment]::GetFolderPath("Desktop"), [Environment]::GetFolderPath("Programs")),
@@ -29,7 +35,13 @@ function Step($text) { Write-Host ""; Write-Host "» $text" -ForegroundColor Yel
 
 Write-Host ""
 Write-Host "迷因捕手 · memeseeks 安装" -ForegroundColor Yellow
-Say "安装到：$Dir"
+$Dir = [IO.Path]::GetFullPath($Dir)
+if ($Library) { $Library = [IO.Path]::GetFullPath($Library) }
+if ($Models) { $Models = [IO.Path]::GetFullPath($Models) }
+$LibraryShown = if ($Library) { $Library } else { Join-Path $env:USERPROFILE ".memeseeks" }
+Say "程序：$Dir"
+Say "图库：$LibraryShown"
+Say "模型：$(if ($Models) { $Models } else { Join-Path $Dir 'models' })"
 New-Item -ItemType Directory -Force -Path $Dir | Out-Null
 
 # ---- mirrors: used when Hugging Face cannot be reached quickly (usually: from China) ----
@@ -101,18 +113,24 @@ $lines = @(
   "rem 迷因捕手: double-click to start; close this window to stop.",
   "chcp 65001 >nul",
   "title memeseeks - close this window to stop",
-  "set ""HF_HOME=%~dp0models""",
   "set PYTHONIOENCODING=utf-8"
 )
+$lines += if ($Models) { "set ""HF_HOME=$Models""" } else { "set ""HF_HOME=%~dp0models""" }
+if ($Library) { $lines += "set ""MEMESEEKS_HOME=$Library""" }
 if ($Mirror -eq "on") { $lines += "set ""HF_ENDPOINT=https://hf-mirror.com""" }
 $lines += @("""%~dp0.venv\Scripts\memeseeks.exe"" serve --open %*", "if errorlevel 1 pause")
-# the paths are relative to the launcher (%~dp0), so a folder name in any script is safe
+# its own paths are relative to it (%~dp0); -Library / -Models are written out after chcp 65001, so any name works
 [IO.File]::WriteAllLines($launcher, $lines, (New-Object Text.UTF8Encoding $false))
 $shell = New-Object -ComObject WScript.Shell
 foreach ($where in $ShortcutDirs) {
   if (-not $where) { continue }
   New-Item -ItemType Directory -Force -Path $where | Out-Null
-  $link = $shell.CreateShortcut((Join-Path $where "迷因捕手.lnk"))
+  $path = Join-Path $where "迷因捕手.lnk"
+  $link = $shell.CreateShortcut($path)
+  if ((Test-Path $path) -and $link.TargetPath -ne $launcher) {  # someone else's: leave it alone
+    Say "已有同名快捷方式，没有覆盖：$path（这次装的启动文件是 $launcher）"
+    continue
+  }
   $link.TargetPath = $launcher
   $link.WorkingDirectory = $Dir
   $link.IconLocation = $ico
@@ -125,5 +143,5 @@ Write-Host ""
 Write-Host "装好了。" -ForegroundColor Green
 Say "以后双击桌面上的「迷因捕手」启动，关掉它的黑色窗口就会停止。"
 Say "第一次启动会下载约 3.9 GB 的模型，网页上能看到进度；下完就能搜索。"
-Say "卸载：删除 $Dir 和两个快捷方式。你的图库在 $env:USERPROFILE\.memeseeks，不会被删除。"
+Say "卸载：删除 $Dir 和两个快捷方式。你的图库在 $LibraryShown，不会被删除。"
 if (-not $NoLaunch) { Start-Process -FilePath $launcher -WorkingDirectory $Dir }

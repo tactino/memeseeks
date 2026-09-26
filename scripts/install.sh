@@ -6,6 +6,8 @@
 # Options, as environment variables in front of `sh`:
 #   MEMESEEKS_DIR     where to install (default: ~/Library/Application Support/memeseeks on macOS,
 #                     ~/.local/share/memeseeks on Linux)
+#   MEMESEEKS_LIBRARY your memes' index, 图集 and collected images (default: ~/.memeseeks)
+#   MEMESEEKS_MODELS  the Hugging Face cache, e.g. one you already have (default: <MEMESEEKS_DIR>/models)
 #   MEMESEEKS_MIRROR  auto (default) | on | off: mirrors for PyPI, Python and the models, for China
 #   MEMESEEKS_SOURCE  what to install (default: the main branch on GitHub)
 #   MEMESEEKS_NO_SHORTCUT=1, MEMESEEKS_NO_LAUNCH=1
@@ -24,12 +26,16 @@ OS=$(uname -s)
 if [ "$OS" = "Darwin" ]; then DEFAULT_DIR="$HOME/Library/Application Support/memeseeks"
 else DEFAULT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/memeseeks"; fi
 DIR=${MEMESEEKS_DIR:-$DEFAULT_DIR}
+LIBRARY=${MEMESEEKS_LIBRARY:-}
+MODELS=${MEMESEEKS_MODELS:-}
 MIRROR=${MEMESEEKS_MIRROR:-auto}
 SOURCE=${MEMESEEKS_SOURCE:-https://github.com/tactino/memeseeks/archive/refs/heads/main.zip}
 command -v curl >/dev/null 2>&1 || fail "需要 curl"
 
 printf '\n\033[33m迷因捕手 · memeseeks 安装\033[0m\n'
-say "安装到：$DIR"
+say "程序：$DIR"
+say "图库：${LIBRARY:-$HOME/.memeseeks}"
+say "模型：${MODELS:-$DIR/models}"
 mkdir -p "$DIR"
 
 # ---- mirrors: used when Hugging Face cannot be reached quickly (usually: from China) ----
@@ -74,7 +80,8 @@ LAUNCHER="$DIR/memeseeks"
   echo '#!/bin/sh'
   echo '# 迷因捕手: start it; close this terminal (or press Ctrl+C) to stop.'
   echo 'HERE=$(cd "$(dirname "$0")" && pwd)'
-  echo 'export HF_HOME="$HERE/models"'
+  if [ -n "$MODELS" ]; then printf 'export HF_HOME="%s"\n' "$MODELS"; else echo 'export HF_HOME="$HERE/models"'; fi
+  if [ -n "$LIBRARY" ]; then printf 'export MEMESEEKS_HOME="%s"\n' "$LIBRARY"; fi
   [ "$MIRROR" = "on" ] && echo 'export HF_ENDPOINT=https://hf-mirror.com'
   echo 'exec "$HERE/.venv/bin/memeseeks" serve --open "$@"'
 } > "$LAUNCHER"
@@ -99,5 +106,5 @@ fi
 printf '\n\033[32m装好了。\033[0m\n'
 say "以后从快捷方式启动，或者运行：\"$LAUNCHER\"；关掉它的终端就会停止。"
 say "第一次启动会下载约 3.9 GB 的模型，网页上能看到进度；下完就能搜索。"
-say "卸载：删除 $DIR（和快捷方式）。你的图库在 ~/.memeseeks，不会被删除。"
+say "卸载：删除 $DIR（和快捷方式）。你的图库在 ${LIBRARY:-~/.memeseeks}，不会被删除。"
 if [ -z "${MEMESEEKS_NO_LAUNCH:-}" ]; then exec "$LAUNCHER"; fi

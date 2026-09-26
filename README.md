@@ -32,7 +32,13 @@ curl -LsSf https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/inst
 
 It installs into one folder with its own Python (Windows `%LOCALAPPDATA%\memeseeks`, macOS `~/Library/Application Support/memeseeks`, Linux `~/.local/share/memeseeks`), adds a 迷因捕手 shortcut and starts it. The first start downloads about 3.9 GB of models; the web app shows the progress. From China it switches to mirrors by itself (PyPI, Python and the models). Nothing is added to PATH; to uninstall, delete that folder and the shortcut — your library, in `~/.memeseeks`, stays. Run the same line again to update.
 
-To install somewhere else: on Windows `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1))) -Dir D:\memeseeks`; on macOS / Linux put `MEMESEEKS_DIR=/some/folder` in front of `sh`.
+To keep everything off drive C: (or install elsewhere), on Windows:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1))) -Dir D:\memeseeks -Library D:\memeseeks-library
+```
+
+`-Dir` is the program, its Python and the models; `-Library` is your library (index, 图集, collected images); `-Models D:\some\hf-cache` reuses a Hugging Face cache you already have instead of downloading the models again. On macOS / Linux the same are `MEMESEEKS_DIR`, `MEMESEEKS_LIBRARY` and `MEMESEEKS_MODELS` in front of `sh`.
 
 ### By hand
 
