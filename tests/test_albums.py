@@ -84,3 +84,11 @@ def test_settings_defaults_validation_and_bad_values_on_disk(tmp_path):
             s.update(bad)
     (tmp_path / "settings.json").write_text('{"theme": "neon", "motion": "reduced", "extra": 1}', encoding="utf-8")
     assert s.get() == {"theme": "paper", "frame": True, "intro": True, "motion": "reduced", "online": False}
+
+
+def test_platform_watermarks_are_hidden_from_shown_text():
+    from memeseeks.service import display_text
+    assert display_text("我在凌晨3点躺在床上 小红书 小红书号：95037120793") == "我在凌晨3点躺在床上"
+    assert display_text("我当我在网上搜完自己的症状 微博：@今日memes") == "我当我在网上搜完自己的症状"
+    assert display_text("B站：@某某UP 那咋了") == "那咋了"
+    assert display_text("小红书上看到的：救命") == "小红书上看到的：救命"     # the word inside a sentence stays

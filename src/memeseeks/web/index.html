@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFD21F">
+<meta name="theme-color" content="#F3EFE4">
 <title>迷因捕手</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/logo.svg" type="image/svg+xml">
@@ -12,92 +12,50 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="masthead">
-  <h1>迷因捕手</h1>
-</header>
+<div class="wrap">
+  <header class="bar" id="bar">
+    <a class="brand" href="./" data-nav aria-label="迷因捕手，回首页">
+      <svg class="cat" aria-hidden="true"></svg>
+      <span class="wordmark"><span class="zh">迷因捕手</span><span class="en"><i>M</i><i>E</i><i>M</i><i>E</i><i>S</i><i>E</i><i>E</i><i>K</i><i>S</i></span></span>
+    </a>
+    <form class="search" role="search" data-search>
+      <label class="visually-hidden" for="bar-q">描述你记得的那张梗图</label>
+      <input id="bar-q" name="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="描述你记得的那张梗图">
+      <button type="submit">搜</button>
+    </form>
+    <nav class="nav" aria-label="主导航">
+      <a href="?view=albums" data-nav data-tab="albums">图集</a>
+      <a href="?view=review" data-nav data-tab="review" id="nav-review" hidden>待确认 <b id="nav-review-count"></b></a>
+    </nav>
+  </header>
+  <main id="view" tabindex="-1"></main>
+</div>
 
-<form class="trap" id="trap" role="search">
-  <label class="visually-hidden" for="q">描述你记得的那张梗图</label>
-  <input id="q" name="q" type="search" autocomplete="off" enterkeyhint="search"
-         placeholder="描述你记得的那张图，比如：关于熬夜的">
-  <button type="submit">搜</button>
-</form>
+<nav class="tabbar" aria-label="主导航">
+  <a href="./" data-nav data-tab="home">首页</a>
+  <a href="?view=albums" data-nav data-tab="albums">图集</a>
+</nav>
 
-<main>
-  <button type="button" class="review-bar" id="review-open" hidden>待确认 <b id="review-count"></b> 张 · 采集来的图里可能有表情包</button>
-
-  <section id="home" aria-labelledby="home-title">
-    <div class="section-head">
-      <h2 id="home-title">旧梗重温</h2>
-      <button type="button" class="quiet" id="shuffle">换一批</button>
-    </div>
-    <div class="grid" id="home-grid"></div>
-  </section>
-
-  <section id="results" hidden aria-live="polite">
-    <div class="section-head">
-      <h2 id="results-title"></h2>
-      <button type="button" class="quiet" id="back">回到旧梗重温</button>
-    </div>
-    <div class="grid" id="results-grid"></div>
-    <details class="maybe" id="maybe" hidden>
-      <summary id="maybe-title"></summary>
-      <div class="grid" id="maybe-grid"></div>
-    </details>
-  </section>
-
-  <section id="online" hidden aria-labelledby="online-title">
-    <div class="section-head">
-      <h2 id="online-title">网上找到的</h2>
-      <span class="source" id="online-source"></span>
-    </div>
-    <p class="notice" id="online-notice" hidden></p>
-    <div class="grid" id="online-grid"></div>
-  </section>
-
-  <section id="review" hidden aria-labelledby="review-title">
-    <div class="section-head">
-      <h2 id="review-title">待确认</h2>
-      <span class="head-actions">
-        <button type="button" class="quiet" id="review-all">全要</button>
-        <button type="button" class="quiet" id="review-back">回到旧梗重温</button>
-      </span>
-    </div>
-    <p class="notice">这些是采集来的、字比较少的图，可能是表情包。「要」放进图库，「不要」移到图库的 rejected 文件夹（不删除，可以撤销）。</p>
-    <p class="progress" id="review-progress"></p>
-    <div class="grid" id="review-grid"></div>
-  </section>
-
-  <p class="notice" id="notice" hidden></p>
-</main>
-
-<dialog class="viewer" id="viewer" aria-label="梗图详情">
-  <button type="button" class="close" id="close" aria-label="关闭">×</button>
-  <figure>
-    <img id="viewer-img" alt="">
-    <figcaption id="viewer-text"></figcaption>
-  </figure>
-  <div class="actions">
-    <button type="button" id="copy" hidden>复制</button>
-    <a id="save" class="button" download>保存</a>
-    <button type="button" id="share" hidden>分享</button>
-  </div>
+<dialog class="panel" id="picker" aria-labelledby="picker-title">
+  <div class="panel-head"><h2 id="picker-title">加入图集</h2><button type="button" class="x" data-close aria-label="关闭">×</button></div>
+  <ul class="picker-list" id="picker-list"></ul>
+  <form class="picker-new" id="picker-new">
+    <input name="name" maxlength="40" autocomplete="off" placeholder="新图集的名字" aria-label="新图集的名字">
+    <button type="submit" class="btn">新建</button>
+  </form>
 </dialog>
 
-<footer class="page-foot">
-  <details class="connect" id="connect">
-    <summary>从社区采集 meme：连接浏览器</summary>
-    <ol>
-      <li>给浏览器装扩展 Violentmonkey（在 Firefox 附加组件或 Chrome 应用商店里搜 Violentmonkey）。</li>
-      <li><a href="/api/inbox/memeseeks.user.js">安装采集 meme 脚本</a>，在弹出的页面点「确认安装」。</li>
-      <li>在贴吧、小红书、豆瓣或任何网页的右下角点「采集 meme」，勾选要的图采集进来，一分钟内就能在这里搜到。</li>
-    </ol>
-    <p>脚本只在你点按钮时采集你正在看的这一页，不自动翻页、不在后台抓取。采集来的图放在图库的 inbox 文件夹里，并记下来自哪个帖子。</p>
-  </details>
-</footer>
+<dialog class="viewer" id="viewer" aria-label="网上找到的梗图">
+  <button type="button" class="x" data-close aria-label="关闭">×</button>
+  <figure><img id="viewer-img" alt=""><figcaption id="viewer-text"></figcaption></figure>
+  <div class="actions" id="viewer-actions"></div>
+</dialog>
 
-<div class="toast" id="toast" role="status" hidden></div>
+<div class="toast" id="toast" role="status" hidden><b></b><span></span></div>
 
+<script src="popcat.js"></script>
+<script src="cat.js"></script>
+<script src="frame.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

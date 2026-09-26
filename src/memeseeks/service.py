@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import json
 import os
+import re
 import random
 import threading
 import time
@@ -23,6 +26,18 @@ _WATCHED = ["paths.json", "relpaths.json", "ocr.jsonl", "vlm.jsonl", "clip_ids.j
             "text_ocr.json", "text_vlm.json"]
 
 
+# Platform watermarks the OCR reads along with the meme ("小红书号：95037120793", "微博：@今日memes").
+# They are hidden when text is shown; search still uses the text as read.
+_WATERMARKS = re.compile(
+    r"(小红书号|抖音号|快手号|B站|bilibili|微博|微信号|公众号)\s*[:：]?\s*@?[\w.-]+|@[\w\u4e00-\u9fff.-]{2,}|(?<!\S)小红书(?!\S)",
+    re.IGNORECASE)
+
+
+def display_text(text: str) -> str:
+    cleaned = _WATERMARKS.sub(" ", text or "")
+    return re.sub(r"[ \t]{2,}", " ", cleaned).strip()
+
+
 def pick_rediscover(ids: list[str], seen: dict[str, float], n: int, now: float, rng) -> list[str]:
     """Never-shown memes first, then the least recently shown; ties broken at random."""
     return sorted(ids, key=lambda i: (seen.get(i, 0.0), rng.random()))[:n]
@@ -40,6 +55,7 @@ class LibraryService:
         self.albums = Collections(library.root, clock=clock)
         self.removed = Removed(library.root)
         self.settings = Settings(library.root)
+        self._numbers, self._numbers_lock = None, threading.Lock()
 
     def _index_stamp(self):
         stamps = []
@@ -72,8 +88,38 @@ class LibraryService:
             self._provenance, self._provenance_stamp = read_provenance(self.library.root), stamp
         return self._provenance
 
+    def numbers(self, s: Searcher | None = None) -> dict[str, int]:
+        """Each meme's No.: given once, in the order memes came in, and never changed (numbers.json).
+        A folder of old files added later gets new numbers; it never renumbers what you already have."""
+        s = s or self.searcher()
+        with self._numbers_lock:
+            if self._numbers is None:
+                try:
+                    self._numbers = json.loads((self.library.root / "numbers.json").read_text(encoding="utf-8"))["numbers"]
+                except (OSError, json.JSONDecodeError, KeyError):
+                    self._numbers = {}
+            new = [i for i in s.ids if i not in self._numbers]
+            if new:
+                start = max(self._numbers.values(), default=0) + 1
+                for n, i in enumerate(sorted(new, key=lambda i: (self.added_at(i, s), i)), start):
+                    self._numbers[i] = n
+                _atomic_write_text(self.library.root / "numbers.json",
+                                   json.dumps({"version": 1, "numbers": self._numbers}))
+            return self._numbers
+
+    def today(self, day: datetime.date | None = None) -> dict | None:
+        """今日一梗: one meme with text per day, the same all day on every device."""
+        s = self.searcher()
+        pool = sorted(i for i in self.visible(s) if s.text.get(i))
+        if not pool:
+            return None
+        day = day or datetime.date.today()
+        pick = int(hashlib.sha256(day.isoformat().encode()).hexdigest(), 16) % len(pool)
+        return self._item(s, pool[pick])
+
     def _item(self, s: Searcher, i: str, score: float | None = None, match: float | None = None) -> dict:
-        item = {"id": i, "score": score, "match": match, "text": s.text.get(i, ""), "relpath": s.relpath[i]}
+        item = {"id": i, "score": score, "match": match, "text": display_text(s.text.get(i, "")), "relpath": s.relpath[i],
+                "no": self.numbers(s).get(i)}
         found = self.sources().get(i)
         if found:  # the first place it was collected from
             item["source"] = {k: found[0][k] for k in ("site", "page_url", "page_title") if k in found[0]}

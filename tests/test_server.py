@@ -88,7 +88,7 @@ def test_static_assets_make_no_external_requests():
     loaded = [f for f in web.rglob("*") if f.suffix in {".html", ".js", ".css", ".svg", ".webmanifest"}]
     assert len(loaded) >= 6
     for f in loaded:  # what the page fetches (font licence texts mention URLs but are never loaded)
-        text = f.read_text(encoding="utf-8").replace('xmlns="http://www.w3.org/2000/svg"', "")  # a namespace, not a fetch
+        text = f.read_text(encoding="utf-8").replace("http://www.w3.org/2000/svg", "")  # the SVG namespace, not a fetch
         assert not re.search(r"https?://", text), f.name
 
 

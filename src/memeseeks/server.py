@@ -249,6 +249,11 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
                 indexer.request()
             return found
 
+    @app.get("/api/today")
+    def today():
+        found = service.today()
+        return _with_urls([found])[0] if found else None
+
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):
         return _with_urls(service.rediscover(n=n))

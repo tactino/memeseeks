@@ -109,3 +109,23 @@ def test_settings_round_trip(tmp_path):
     assert client.put("/api/settings", json={"theme": "night", "frame": False}).json()["frame"] is False
     assert client.get("/api/settings").json()["theme"] == "night"
     assert client.put("/api/settings", json={"theme": "pink"}).status_code == 400
+
+
+def test_numbers_are_given_once_in_arrival_order_and_never_change(tmp_path):
+    import os
+    client, lib, indexer, ids = _setup(tmp_path)
+    for k, name in enumerate(("dog.png", "cat.png", "cat2.png")):       # set arrival order by mtime
+        os.utime(tmp_path / "album" / name, (1000 + k, 1000 + k))
+    nos = {h["id"]: h["no"] for h in client.get("/api/albums/all").json()["items"]}
+    assert sorted(nos.values()) == [1, 2, 3]
+    solid(tmp_path / "album", "old.png", (0, 255, 0))
+    os.utime(tmp_path / "album" / "old.png", (1, 1))                      # older than everything
+    lib.update(Models(ocr=FakeOcr(), clip=FakeClip(), bge=FakeBge()), log=lambda m: None)
+    again = {h["id"]: h["no"] for h in client.get("/api/albums/all").json()["items"]}
+    assert all(again[i] == n for i, n in nos.items()) and max(again.values()) == 4
+
+
+def test_today_is_one_meme_with_text_and_stable_for_the_day(tmp_path):
+    client, _, _, ids = _setup(tmp_path)
+    first, second = client.get("/api/today").json(), client.get("/api/today").json()
+    assert first["id"] == second["id"] and first["text"] and first["thumb"].startswith("/api/thumb/")
