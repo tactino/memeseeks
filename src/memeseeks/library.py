@@ -74,6 +74,16 @@ class Library:
         self._save(cfg)
         return True
 
+    def remove_source(self, folder) -> bool:
+        """Stop watching a folder. Its files are untouched; its memes leave the library at the next update."""
+        cfg = self.config()
+        path = str(Path(folder).resolve())
+        if path not in cfg["sources"]:
+            return False
+        cfg["sources"].remove(path)
+        self._save(cfg)
+        return True
+
     def set_vlm(self, on: bool) -> None:
         cfg = self.config()
         cfg["vlm"] = bool(on)

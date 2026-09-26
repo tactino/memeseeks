@@ -26,7 +26,10 @@
   --accent: #FFD21F;        /* the brand yellow */
   --red: #DE3B2E;
   --blue: #1F4FA3;
-  --on-accent: var(--ink);
+  --on-accent: #161411;       /* text on yellow: always dark, in every theme */
+  --inverse-bg: #161411;      /* toasts, badges: a dark block with light text */
+  --inverse-fg: #FFFFFF;
+  --inverse-accent: #FFD21F;
 
   /* type: the serif (bundled subset) is for UI words only; meme text uses the reader's system fonts */
   --font-serif: "Memeseeks Serif", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
@@ -59,4 +62,20 @@
   --dur-slow: 550ms;
 
   color-scheme: light;
+}
+
+/* 夜间: the same design with paper and ink swapped; the yellow and the cat stay */
+:root[data-theme="night"] {
+  --paper: #171613;
+  --card: #211F1B;
+  --ink: #EDE6D6;
+  --muted: #A59E8E;
+  --rule: #4A463D;
+  --rule-soft: #34312A;
+  --red: #E0493B;
+  --blue: #3E6CC4;
+  --inverse-bg: #EDE6D6;
+  --inverse-fg: #161411;
+  --inverse-accent: #161411;
+  color-scheme: dark;
 }

@@ -16,7 +16,7 @@ CHOICES = {
     "frame": (True, False),
     "intro": (True, False),
     "motion": ("full", "reduced"),
-    "online": (False, True),
+    "online": (True, False),   # only matters when the server was started with a web source
 }
 
 

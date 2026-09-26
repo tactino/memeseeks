@@ -22,7 +22,8 @@ function h(spec, attrs = {}, ...kids) {
 // ---------------- the server ----------------
 async function request(method, path, body) {
   const init = { method, credentials: "same-origin", headers: {} };
-  if (body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(body); }
+  if (body instanceof Blob) { init.headers["Content-Type"] = body.type; init.body = body; }  // an upload: the image itself
+  else if (body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(body); }
   const res = await fetch(path, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -91,14 +92,92 @@ function newAlbumTile(onCreated) {
   return tile;
 }
 
-function connectBrowser() {
-  return h("details.connect", {},
-    h("summary", { text: "从社区采集 meme：连接浏览器" }),
-    h("ol", {},
+function connectSteps() {
+  return [
+    h("ol.connect", {},
       h("li", { text: "给浏览器装扩展 Violentmonkey（在 Firefox 附加组件或 Chrome 应用商店里搜 Violentmonkey）。" }),
       h("li", {}, h("a", { href: "/api/inbox/memeseeks.user.js", text: "安装采集 meme 脚本" }), "，在弹出的页面点「确认安装」。"),
       h("li", { text: "在贴吧、小红书、豆瓣或任何网页上点那只猫，勾选要的图采集进来，一分钟内就能在这里搜到。" })),
-    h("p", { text: "脚本只在你点它时采集你正在看的这一页，不自动翻页、不在后台抓取。采集来的图是 inbox 文件夹里的普通图片文件，并记下来自哪个帖子。" }));
+    h("p.hint", { text: "脚本只在你点它时采集你正在看的这一页，不自动翻页、不在后台抓取。采集来的图是 inbox 文件夹里的普通图片文件，并记下来自哪个帖子。" })];
+}
+
+// ---------------- settings (docs/design.md, Settings) ----------------
+let settings = { theme: "paper", frame: true, intro: true, motion: "full", online: true };
+
+function applySettings(s) {
+  settings = s;
+  const root = document.documentElement;
+  if (s.theme === "night") root.dataset.theme = "night"; else delete root.dataset.theme;
+  if (s.frame) delete root.dataset.frame; else root.dataset.frame = "off";
+  try {  // so the next visit paints in the right theme before the settings arrive (index.html)
+    localStorage.setItem("memeseeks-theme", s.theme);
+    localStorage.setItem("memeseeks-frame", s.frame ? "on" : "off");
+  } catch (e) { /* storage blocked */ }
+  $('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue("--paper").trim();
+  Frame.draw();
+  return s;
+}
+const settingsReady = api("/api/settings").then(applySettings).catch(() => settings);
+
+// ---------------- upload: the button, and dropping files anywhere ----------------
+const IMAGE_NAME = /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i;
+let uploadTarget = null;  // the 图集 on screen, if any: uploads go into it
+
+async function upload(files, album) {
+  const images = [...files].filter((f) => f.type.startsWith("image/") || IMAGE_NAME.test(f.name));
+  if (!images.length) { toast("这些不是图片", true); return; }
+  const path = `/api/upload${album ? `?album=${encodeURIComponent(album.id)}` : ""}`;
+  let added = 0, had = 0;
+  const failed = [];
+  for (const [i, f] of images.entries()) {
+    toast(`正在上传 ${i + 1} / ${images.length}`);
+    const type = f.type.startsWith("image/") ? f.type : `image/${f.name.split(".").pop().toLowerCase().replace("jpg", "jpeg")}`;
+    try {
+      const r = await request("POST", path, f.slice(0, f.size, type));
+      if (r.status === "added") added++; else had++;
+    } catch (err) { failed.push(err.message); }
+  }
+  const into = album ? `「${album.name}」` : "图库";
+  const parts = [added && `已上传 ${added} 张到${into}，建好索引后就会出现`, had && `${had} 张本来就在图库里`, failed.length && `${failed.length} 张没传上：${failed[0]}`];
+  toast(parts.filter(Boolean).join("；"), failed.length > 0);
+  if (added) whenIndexed(location.search);
+  else if (had && album) render();
+}
+
+async function whenIndexed(page) {  // show the new memes once the server has indexed them, if still on that page
+  for (let i = 0; i < 400; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const s = await api("/api/status").catch(() => null);
+    if (!s || !s.indexing) return;  // started with --no-watch: nothing indexes in the background
+    if (!s.indexing.pending && !s.indexing.running) break;
+  }
+  if (location.search === page) render();
+}
+
+function uploadButton(album) {
+  const input = h("input", { type: "file", accept: "image/*", multiple: true });
+  input.addEventListener("change", () => { upload(input.files, album); input.value = ""; });
+  return h("label.btn.upload", { title: "也可以直接把图片拖进这个页面" }, "上传", input);
+}
+
+{
+  const zone = h("div.dropzone", { hidden: true }, h("div"));
+  document.body.append(zone);
+  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+  let depth = 0;
+  addEventListener("dragenter", (e) => {
+    if (!hasFiles(e)) return;
+    if (depth++ === 0) { zone.firstChild.textContent = `松手，上传到${uploadTarget ? `「${uploadTarget.name}」` : "图库"}`; zone.hidden = false; }
+  });
+  addEventListener("dragleave", (e) => { if (hasFiles(e) && --depth <= 0) { depth = 0; zone.hidden = true; } });
+  addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth = 0;
+    zone.hidden = true;
+    upload(e.dataTransfer.files, uploadTarget);
+  });
 }
 
 // ---------------- copy, save, share ----------------
@@ -193,8 +272,8 @@ function openViewer(item) {
 }
 
 async function onlineSection(query) {
-  const config = await getOnlineConfig();
-  if (!config.enabled) return null;
+  const [config] = await Promise.all([getOnlineConfig(), settingsReady]);
+  if (!config.enabled || !settings.online) return null;
   const credit = h("a.meta", { href: config.attribution_url, target: "_blank", rel: "noopener", text: `Powered by ${config.provider}` });
   const body = h("div", {}, h("p.notice", { text: "正在搜网上……" }));
   const section = h("section.online", {}, h("div.section-head", {}, h("h2", { text: "网上找到的" }), credit), body);
@@ -243,7 +322,7 @@ async function homePage() {
     [today, albums, old] = await Promise.all([api("/api/today"), api("/api/albums"), api("/api/rediscover?n=12")]);
   } catch (err) {
     if (err.status !== 409) throw err;
-    return [hero, blank(1, "图库还是空的", "在电脑上运行 memeseeks add <文件夹> 把梗图加进来，或者连接浏览器，从社区采集。"), connectBrowser()];
+    return [hero, emptyLibrary()];
   }
   const out = [hero];
   if (today) {
@@ -263,8 +342,12 @@ async function homePage() {
     try { const next = grid(await api("/api/rediscover?n=12")); oldGrid.replaceWith(next); oldGrid = next; } catch (err) { toast(err.message, true); }
   } });
   out.push(h("section.section", {}, h("div.section-head", {}, h("h2", { text: "旧梗重温" }), again), oldGrid));
-  out.push(connectBrowser());
   return out;
+}
+
+function emptyLibrary() {
+  return blank(1, "图库还是空的", "上传梗图，或者直接把图片拖进这个页面；也可以在设置里添加电脑上的梗图文件夹，或连接浏览器从社区采集。",
+    h("div.blank-actions", {}, uploadButton(null), h("a.btn", { href: "?view=settings", text: "去设置" })));
 }
 
 async function searchPage({ q }) {
@@ -345,10 +428,12 @@ async function albumsPage() {
 async function albumPage({ id, sort }) {
   const a = await api(`/api/albums/${encodeURIComponent(id)}?sort=${sort === "old" ? "old" : "new"}`);
   document.title = `${a.name} · 迷因捕手`;
+  const target = id === "all" ? null : { id, name: a.name };
+  uploadTarget = target;
   const title = h("h1.page-title", { text: a.name });
   const tools = h("div.tools", {}, h("span.seg", {},
     h("a", { href: `?view=album&id=${id}&sort=new`, "aria-current": String(sort !== "old"), text: "最新" }),
-    h("a", { href: `?view=album&id=${id}&sort=old`, "aria-current": String(sort === "old"), text: "最早" })));
+    h("a", { href: `?view=album&id=${id}&sort=old`, "aria-current": String(sort === "old"), text: "最早" })), uploadButton(target));
   if (id !== "all" && id !== "liked") {
     tools.append(
       h("button.btn.quiet", { type: "button", text: "重命名", onclick: () => {
@@ -356,7 +441,7 @@ async function albumPage({ id, sort }) {
         const form = h("form.rename", {}, input, h("button.btn.primary", { type: "submit", text: "好" }));
         form.addEventListener("submit", async (e) => {
           e.preventDefault();
-          try { a.name = (await request("PATCH", `/api/albums/${id}`, { name: input.value })).name; title.textContent = a.name; form.replaceWith(title); }
+          try { a.name = target.name = (await request("PATCH", `/api/albums/${id}`, { name: input.value })).name; title.textContent = a.name; form.replaceWith(title); }
           catch (err) { toast(err.message, true); }
         });
         title.replaceWith(form);
@@ -369,7 +454,9 @@ async function albumPage({ id, sort }) {
   }
   const head = h("div.album-head", {}, h("div", {}, title, h("div.meta", { text: `${a.count} 张` })), tools);
   if (!a.items.length) {
-    const tip = id === "liked" ? ["还没有喜欢的梗图", "在梗图页点「喜欢」，它就会出现在这里。"] : ["这个图集还是空的", "在梗图页点「加入图集」，把图放进来。"];
+    const tip = id === "liked" ? ["还没有喜欢的梗图", "在梗图页点「喜欢」，它就会出现在这里。"]
+      : id === "all" ? ["图库还是空的", "点「上传」，或者直接把图片拖进这个页面。"]
+      : ["这个图集还是空的", "在梗图页点「加入图集」把图放进来，或者直接上传。"];
     return [head, blank(1, ...tip)];
   }
   return [head, grid(a.items)];
@@ -410,6 +497,52 @@ async function reviewPage() {
     h("div.grid", {}, cards)];
 }
 
+async function settingsPage() {
+  document.title = "设置 · 迷因捕手";
+  const [s, sources, online] = await Promise.all([api("/api/settings"), api("/api/sources"), getOnlineConfig()]);
+  applySettings(s);
+  const choice = (key, options) => {  // [[value, label], ...]: saved and applied at once
+    const seg = h("span.seg", { role: "group" });
+    const paint = () => [...seg.children].forEach((b, i) => b.setAttribute("aria-pressed", String(options[i][0] === settings[key])));
+    for (const [value, label] of options) {
+      seg.append(h("button", { type: "button", text: label, onclick: async () => {
+        if (settings[key] === value) return;
+        try { applySettings(await request("PUT", "/api/settings", { [key]: value })); paint(); } catch (err) { toast(err.message, true); }
+      } }));
+    }
+    paint();
+    return seg;
+  };
+  const row = (title, ...body) => h("section.setting", {}, h("h2", { text: title }), h("div", {}, ...body));
+
+  const folders = h("ul.folders");
+  const showFolders = (list) => folders.replaceChildren(...list.map((f) => h("li", {},
+    h("span", { text: f.path }),
+    f.inbox ? h("span.tag", { text: "采集收件箱" }) : null,
+    f.exists ? null : h("span.tag.gone", { text: "找不到这个文件夹" }),
+    f.inbox ? null : h("button.linkish.danger", { type: "button", text: "移除", onclick: async () => {
+      if (!confirm("不再收录这个文件夹？文件夹里的图片不会被删除，只是不再出现在迷因捕手里。")) return;
+      try { showFolders(await request("POST", "/api/sources/remove", { path: f.path })); toast("已移除"); } catch (err) { toast(err.message, true); }
+    } }))));
+  showFolders(sources);
+  const path = h("input", { name: "path", autocomplete: "off", spellcheck: "false", placeholder: "文件夹的完整路径，比如 D:\\梗图", "aria-label": "文件夹的完整路径" });
+  const add = h("form.add-folder", {}, path, h("button.btn", { type: "submit", text: "添加" }));
+  add.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try { showFolders(await request("POST", "/api/sources", { path: path.value })); path.value = ""; toast("已添加，正在建立索引"); } catch (err) { toast(err.message, true); }
+  });
+
+  return [h("div.results-head", {}, h("h1.page-title", { text: "设置" }), h("span.meta", { text: "保存在图库里，用手机打开也一样" })),
+    h("div.settings", {},
+      row("主题", choice("theme", [["paper", "纸色"], ["night", "夜间"]])),
+      row("蒙德里安边框", choice("frame", [[true, "开"], [false, "关"]])),
+      online.enabled ? row("网上搜索", choice("online", [[true, "开"], [false, "关"]]),
+        h("p.hint", { text: `搜索时也到 ${online.provider} 上找，结果单独列在最后。` })) : null,
+      row("来源文件夹", folders, add,
+        h("p.hint", { text: "这些文件夹里（包括子文件夹）的图片会被收录。原图留在原处，迷因捕手不会移动或修改它们。填的是运行迷因捕手的这台电脑上的路径。" })),
+      row("连接浏览器", ...connectSteps()))];
+}
+
 // ---------------- 加入图集 ----------------
 async function openPicker(m, onChange) {
   const dlg = $("#picker"), list = $("#picker-list"), form = $("#picker-new");
@@ -446,7 +579,7 @@ document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListen
 document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
 
 // ---------------- moving between pages ----------------
-const PAGES = { home: homePage, search: searchPage, meme: memePage, albums: albumsPage, album: albumPage, review: reviewPage };
+const PAGES = { home: homePage, search: searchPage, meme: memePage, albums: albumsPage, album: albumPage, review: reviewPage, settings: settingsPage };
 
 function route() {
   const p = new URLSearchParams(location.search);
@@ -465,14 +598,15 @@ async function render() {
   const token = ++renderToken;
   document.body.dataset.view = r.view;
   document.title = "迷因捕手";
-  const tab = { album: "albums", albums: "albums", home: "home", review: "review" }[r.view] || "";
+  const tab = { album: "albums", albums: "albums", home: "home", review: "review", settings: "settings" }[r.view] || "";
+  uploadTarget = null;
   document.querySelectorAll("[data-tab]").forEach((a) => (a.dataset.tab === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   $("#bar-q").value = r.view === "search" ? r.q : "";
   let nodes;
   try {
     nodes = await (PAGES[r.view] || homePage)(r);
   } catch (err) {
-    nodes = err.status === 409 ? blank(1, "图库还是空的", err.message) : h("p.notice.error", { text: err.message });
+    nodes = err.status === 409 ? emptyLibrary() : h("p.notice.error", { text: err.message });
   }
   if (token !== renderToken) return;  // a newer navigation won
   view.replaceChildren(...[].concat(nodes));
@@ -508,7 +642,6 @@ async function refreshReviewCount() {
 // ---------------- start ----------------
 Cat.draw($(".brand .cat"));
 Frame.draw();
-api("/api/settings").then((s) => { if (!s.frame) { document.documentElement.dataset.frame = "off"; Frame.draw(); } }).catch(() => {});
 render();
 
 if ("serviceWorker" in navigator && window.isSecureContext) {

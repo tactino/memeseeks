@@ -129,3 +129,37 @@ def test_today_is_one_meme_with_text_and_stable_for_the_day(tmp_path):
     client, _, _, ids = _setup(tmp_path)
     first, second = client.get("/api/today").json(), client.get("/api/today").json()
     assert first["id"] == second["id"] and first["text"] and first["thumb"].startswith("/api/thumb/")
+
+
+def test_source_folders_can_be_added_and_removed_from_the_web_app(tmp_path):
+    client, lib, indexer, ids = _setup(tmp_path)
+    listed = client.get("/api/sources").json()
+    assert any(s["path"].endswith("album") and s["exists"] and not s["inbox"] for s in listed)
+    more = tmp_path / "more"
+    solid(more, "frog.png", (0, 255, 0))
+    assert client.post("/api/sources", json={"path": str(more)}).status_code == 200
+    assert indexer.tick() is True and len(lib.paths()) == 4
+    assert client.post("/api/sources", json={"path": str(tmp_path / "nope")}).status_code == 400
+    assert client.post("/api/sources/remove", json={"path": str(more)}).status_code == 200
+    assert indexer.tick() is True and len(lib.paths()) == 3
+    assert (more / "frog.png").exists()                                     # files are never touched
+    inbox_dir = [s for s in client.get("/api/sources").json() if s["inbox"]]
+    if inbox_dir:
+        assert client.post("/api/sources/remove", json={"path": inbox_dir[0]["path"]}).status_code == 400
+
+
+def test_custom_css_is_served_from_the_library(tmp_path):
+    client, lib, _, _ = _setup(tmp_path)
+    empty = client.get("/api/custom.css")
+    assert empty.status_code == 200 and empty.text == "" and empty.headers["content-type"].startswith("text/css")
+    (lib.root / "custom.css").write_text(":root { --accent: hotpink; }", encoding="utf-8")
+    assert "hotpink" in client.get("/api/custom.css").text
+
+
+def test_heic_uploads_are_accepted(tmp_path):
+    import pillow_heif
+    client, _, _, _ = _setup(tmp_path)
+    buf = io.BytesIO()
+    pillow_heif.from_pillow(Image.new("RGB", (16, 16), (10, 200, 30))).save(buf, format="HEIF")
+    r = client.post("/api/upload", content=buf.getvalue(), headers={"Content-Type": "image/heic"})
+    assert r.status_code == 200 and r.json()["status"] == "added"

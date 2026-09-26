@@ -10,6 +10,15 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/api/custom.css">
+<script>
+  // the last known theme and frame, so the first paint already matches the settings
+  try {
+    const t = localStorage.getItem("memeseeks-theme"), f = localStorage.getItem("memeseeks-frame");
+    if (t === "night") document.documentElement.dataset.theme = "night";
+    if (f === "off") document.documentElement.dataset.frame = "off";
+  } catch (e) { /* storage blocked: the settings apply a moment later */ }
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -26,6 +35,7 @@
     <nav class="nav" aria-label="主导航">
       <a href="?view=albums" data-nav data-tab="albums">图集</a>
       <a href="?view=review" data-nav data-tab="review" id="nav-review" hidden>待确认 <b id="nav-review-count"></b></a>
+      <a href="?view=settings" data-nav data-tab="settings">设置</a>
     </nav>
   </header>
   <main id="view" tabindex="-1"></main>
@@ -34,6 +44,7 @@
 <nav class="tabbar" aria-label="主导航">
   <a href="./" data-nav data-tab="home">首页</a>
   <a href="?view=albums" data-nav data-tab="albums">图集</a>
+  <a href="?view=settings" data-nav data-tab="settings">设置</a>
 </nav>
 
 <dialog class="panel" id="picker" aria-labelledby="picker-title">

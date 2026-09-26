@@ -29,7 +29,7 @@ def test_manifest_and_page_icons_exist():
         assert (WEB / icon["src"]).is_file(), icon["src"]
     page = (WEB / "index.html").read_text(encoding="utf-8")
     for href in re.findall(r'<link rel="(?:icon|apple-touch-icon|stylesheet|manifest)" href="([^"]+)"', page):
-        assert (WEB / href).is_file(), href
+        assert href.startswith("/api/") or (WEB / href).is_file(), href   # /api/custom.css is served from the library
 
 
 def test_the_cats_two_states_can_morph_into_each_other():

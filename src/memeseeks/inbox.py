@@ -23,7 +23,7 @@ MAX_IMAGE_BYTES = 20 * 1024 * 1024
 KEY_FILE = "inbox-key"
 PROVENANCE_FILE = "provenance.jsonl"
 # PIL format -> file extension; anything else is refused.
-FORMATS = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "WEBP": ".webp", "BMP": ".bmp"}
+FORMATS = {"JPEG": ".jpg", "PNG": ".png", "GIF": ".gif", "WEBP": ".webp", "BMP": ".bmp", "HEIF": ".heic"}
 _TEXT_LIMITS = {"site": 40, "page_title": 200}
 _URL_FIELDS = ("page_url", "image_url")
 _URL_LIMIT = 2000

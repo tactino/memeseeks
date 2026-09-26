@@ -62,11 +62,14 @@ Kept to what changes the experience; each has a sensible default.
 |---|---|
 | 主题 | 纸色 / 夜间 |
 | 蒙德里安边框 | 开 / 关 |
-| 开场动画 | 开 / 关 (it plays once per visit, not on every page) |
-| 动效 | 完整 / 减少 (the system's reduce-motion setting always wins) |
-| 网上搜索 | 关 / 开 (only when the server was started with a web source) |
-| 来源文件夹 | the watched folders: add, remove |
-| 连接浏览器 | install the collector |
+| 开场动画 | 开 / 关 (it plays once per visit, not on every page; shown once the entrance exists) |
+| 动效 | 完整 / 减少 (the system's reduce-motion setting always wins; shown once there is motion to reduce) |
+| 网上搜索 | 开 / 关 (shown only when the server was started with a web source, which is itself off by default) |
+| 来源文件夹 | the watched folders: add (a path on the computer running the server), remove; the collector's inbox stays |
+| 连接浏览器 | install the collector (the steps live here, not on the home page) |
+
+Uploading is on 全部 and every 图集 page (a 上传 button; on phones it opens the photo picker) and by dropping
+files anywhere on the page; into the 图集 on screen, if any. Uploaded memes skip 待确认 (you chose them).
 
 Where to put a new meme (the collector's target 图集) is chosen where it happens and remembered there,
 not in settings. For deeper changes, a `custom.css` in the library folder is loaded after the app's styles.
@@ -90,7 +93,9 @@ Mondrian lines on warm paper.
 | `--accent` | `#FFD21F` | the one loud colour: primary buttons, selection, focus ring, 今日一梗 |
 | `--red`, `--blue` | `#DE3B2E`, `#1F4FA3` | Mondrian blocks only; red also marks failures |
 
-Light only for now; a dark theme is not designed yet.
+夜间 swaps paper and ink (`:root[data-theme="night"]` in `tokens.css`); the yellow, the Mondrian colours and
+the cat stay. Text on yellow is always dark (`--on-accent`); dark blocks with light text (toasts, badges)
+use `--inverse-bg` / `--inverse-fg`, which flip with the theme.
 
 ## Type
 

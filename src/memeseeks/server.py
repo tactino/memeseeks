@@ -254,6 +254,44 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
         found = service.today()
         return _with_urls([found])[0] if found else None
 
+    # ---------------- 来源文件夹 and custom.css ----------------
+    def _sources():
+        inbox_dir = str((service.library.root / "inbox").resolve())
+        return [{"path": src, "exists": Path(src).is_dir(), "inbox": src == inbox_dir}
+                for src in service.library.config()["sources"]]
+
+    @app.get("/api/sources")
+    def sources():
+        return _sources()
+
+    @app.post("/api/sources")
+    async def sources_add(request: Request):
+        folder = str((await _json_body(request)).get("path") or "").strip().strip('"')
+        if not folder or not Path(folder).expanduser().is_dir():
+            raise HTTPException(400, "没有这个文件夹：请填这台电脑上一个文件夹的完整路径")
+        service.library.add_source(Path(folder).expanduser())
+        if indexer is not None:
+            indexer.request()
+        return _sources()
+
+    @app.post("/api/sources/remove")
+    async def sources_remove(request: Request):
+        folder = str((await _json_body(request)).get("path") or "")
+        if inbox is not None and Path(folder).resolve() == inbox.folder.resolve():
+            raise HTTPException(400, "采集收件箱由迷因捕手管理，不能移除")
+        if not service.library.remove_source(folder):
+            raise HTTPException(404, "no such source folder")
+        if indexer is not None:
+            indexer.request()
+        return _sources()
+
+    @app.get("/api/custom.css")
+    def custom_css():
+        # your own styles, loaded after the app's: <library>/custom.css (docs/design.md, Settings)
+        path = service.library.root / "custom.css"
+        css = path.read_text(encoding="utf-8") if path.is_file() else ""
+        return Response(css, media_type="text/css; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):
         return _with_urls(service.rediscover(n=n))
