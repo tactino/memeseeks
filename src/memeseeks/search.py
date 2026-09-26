@@ -17,10 +17,12 @@ class EmptyLibrary(Exception):
 
 
 # Text-route cosine (query vs the meme's OCR text or VLM description) needed to call a hit a match.
-# On the maintainer's 25 labeled queries the right meme scored 0.76 on average (min 0.51) and the best
-# wrong one 0.53: at 0.55 the right meme is kept for 96% of queries and wrong ones pass for 24%.
-# The CLIP route barely separates them (0.36 vs 0.32), so it only orders results, never qualifies one.
-MATCH_THRESHOLD = 0.55
+# Calibrated on the maintainer's 25 labeled queries. On the raw OCR text the right meme scored 0.76 on average
+# (min 0.51) and the best wrong one 0.53, so 0.55 kept the right meme for 96% of queries. On the meme's own words
+# (maintext.py: no watermarks or accounts, which diluted every vector) all scores rise a little: 0.57 keeps the
+# same 96% with fewer wrong ones (0.92 per query instead of 1.24). The CLIP route barely separates right from
+# wrong (0.36 vs 0.32), so it only orders results, never qualifies one.
+MATCH_THRESHOLD = 0.57  # on the meme's own words (maintext.py); experiments/results/maintext.md
 
 # 相似的梗: another meme counts as similar when its text vector is this close (cosine), or its image is.
 # On the maintainer's 109 memes: 0.95 is the same meme twice, 0.73-0.74 are memes on the same theme

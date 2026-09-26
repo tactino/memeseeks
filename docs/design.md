@@ -164,6 +164,13 @@ The nose rises and shrinks as the mouth opens and disappears at half its size (n
   `--ease` for moves, `--ease-out` for things appearing.
 - `prefers-reduced-motion`: no entrance, no slides, no cat animations; everything still works.
 
+## Meme text
+
+What the meme page shows under 图中文字 (and 今日一梗 takes its title from) is the meme's own words, not
+everything OCR read: platform watermarks, the account, time and counters of a screenshotted post, share
+buttons and noise are left out, and wrapped lines are joined back into sentences, one per line. Search and
+相似的梗 use the same text (`maintext.py`; numbers in `experiments/results/maintext.md`).
+
 ## First run
 
 The server listens at once; the models load behind it (`warmup.py`). On the first run that means

@@ -12,7 +12,8 @@ from pathlib import Path
 import numpy as np
 
 from .images import ImageRecord, load_image
-from .models.ocr import OcrLine, ocr_text
+from .maintext import common_lines, main_text
+from .models.ocr import OcrLine
 from .models.vlm import description_text
 
 CLIP_CHUNK = 16  # images per batch; also how often indexing progress moves in the CLIP stage
@@ -154,8 +155,11 @@ def load_index(out_dir, vlm_file: str = "vlm.jsonl") -> LoadedIndex:
 
 
 def route_texts(idx: LoadedIndex) -> dict[str, dict[str, str]]:
-    """Non-empty text per image for each text route; OCR/VLM error rows count as no text."""
-    ocr = {i: ocr_text([OcrLine(**l) for l in v]) for i, v in idx.ocr.items() if isinstance(v, list)}
+    """Non-empty text per image for each text route; OCR/VLM error rows count as no text. For OCR it is the
+    meme's own words (maintext.py): no watermarks, accounts or screen furniture, wrapped lines joined."""
+    lines = {i: [OcrLine(**l) for l in v] for i, v in idx.ocr.items() if isinstance(v, list)}
+    common = common_lines(lines.values())
+    ocr = {i: main_text(ls, common) for i, ls in lines.items()}
     vlm = {i: description_text(v) for i, v in idx.vlm.items() if isinstance(v, dict) and "_error" not in v}
     return {"ocr": {i: t for i, t in ocr.items() if t.strip()},
             "vlm": {i: t for i, t in vlm.items() if t.strip()}}
