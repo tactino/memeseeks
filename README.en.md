@@ -6,6 +6,10 @@ Describe what you remember about a meme, get it back from your own collection. W
 
 **Status:** v0.3 — a local web app, the command line, one-line installers and a Docker image. A cross-language meme graph and re-making translated memes are on the roadmap.
 
+![The home page: today's meme and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
+
+<sub>The memes in the screenshots are demo images drawn by `scripts/demo_memes.py`.</sub>
+
 ## How it finds memes
 
 Every image is read in up to three ways and the results are fused (reciprocal rank fusion):
@@ -88,6 +92,7 @@ More:
 ```bash
 memeseeks add ~/Pictures/memes --vlm      # also describe images with the local VLM (GPU); --no-vlm turns it off
 memeseeks add ~/Pictures/memes --tidy     # tidy each meme's text with a vision-language model (a GPU with ~20 GB)
+memeseeks tidy-remote --host gpu-box --home ~/memeseeks   # no GPU here: tidy on another computer over ssh, new memes too
 memeseeks add ~/Pictures/memes --retry-failed   # redo images that failed a step last time
 memeseeks search "cat judging you" -k 5 --json
 memeseeks eval queries.csv                # score your own queries (see below)
@@ -97,6 +102,8 @@ memeseeks --lib D:\memes-lib status       # global options such as --lib go befo
 The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOME`). Nothing leaves your machine unless you turn on online search.
 
 ### The web app
+
+![Searching 睡觉 (sleep): four confident matches](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
 
 It is a personal meme collection, a little like a music app is for songs:
 
@@ -109,6 +116,8 @@ It is a personal meme collection, a little like a music app is for songs:
 On the computer running it (`localhost`) it also installs as an app from the browser menu.
 
 **New memes are picked up by themselves.** While `serve` runs, images you add to any library folder are indexed in the background and become searchable within about a minute (`--no-watch` turns this off). On Windows the indexing runs at below-normal priority, so the rest of the computer stays responsive. The library also has an inbox folder, `<library>/inbox`, for memes that don't belong to one of your folders.
+
+![On a phone: a meme's page, 刷梗 and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/phone.png)
 
 **From your phone:** on the computer, turn on 设置 → 手机访问 and scan the QR code with the phone (both on the same Wi-Fi). The code carries a token: only devices that know it can open your library, and 换一个口令 locks out every phone that scanned the old one. Windows may ask once whether to allow network access; allow it. Over plain `http` the phone can search, 刷梗 and **save**; **copy** and **share** (and installing as an app) need HTTPS, because browsers only allow them in a secure context. (By hand instead: `memeseeks serve --host 0.0.0.0 --token <something secret>`.)
 

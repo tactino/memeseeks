@@ -320,10 +320,11 @@ async function homePage() {
   const out = [hero];
   if (today) {
     const text = today.text.replace(/\s+/g, " ").trim();
+    const lines = today.text.trim();  // a dialogue stays one line a turn
     out.push(h("a.today", { href: `?view=meme&id=${today.id}` },
       h("div.t-img", {}, h("img", { src: today.thumb, alt: text.slice(0, 60) })),
       h("div.t-text", {}, h("div.kicker", { text: `今日一梗 · ${pad(today.no)}` }), h("h2", { text: firstLine(text) || "今天的这一张" }),
-        h("p", { text: text.length > 90 ? `${text.slice(0, 90)}…` : text }), h("div.t-src", { text: `来自 ${siteOf(today)}` })),
+        h("p", { text: lines.length > 90 ? `${lines.slice(0, 90)}…` : lines }), h("div.t-src", { text: `来自 ${siteOf(today)}` })),
       h("div.t-red"), h("div.t-blue"), h("div.t-blank")));
   }
   const mine = albums.filter((a) => a.id !== "all");
