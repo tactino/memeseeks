@@ -304,6 +304,41 @@ body[data-view="feed"] .bar, body[data-view="feed"] .tabbar { display: none; }
 .loading { display: grid; place-items: center; padding: 90px 0; }
 .loading .cat { width: 96px; height: 96px; }
 
+/* ---------- the entrance ---------- */
+.wrap, #mframe, .tabbar { transition: opacity .6s ease; }
+:root[data-intro] .wrap, :root[data-intro] #mframe, :root[data-intro] .tabbar { opacity: 0; }
+#intro { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; cursor: pointer; }
+.intro-lock { display: flex; align-items: center; gap: 22px; animation: intro-in .35s ease both; }
+@keyframes intro-in { from { opacity: 0; } }
+.intro-logo, .intro-name { transform-origin: 0 0; }
+.intro-logo svg { display: block; width: 150px; height: 150px; }
+.intro-name .zh { font-size: 88px; }
+.intro-name .en { font-size: 30px; margin-top: 16px; }
+@media (max-width: 700px) {
+  .intro-logo svg { width: 96px; height: 96px; }
+  .intro-name .zh { font-size: 52px; }
+  .intro-name .en { font-size: 18px; margin-top: 10px; }
+}
+.intro-hide { visibility: hidden; }
+
+/* ---------- page changes: slides; the logo, the name, the search box and an opened meme fly ---------- */
+.brand .cat, .lockup .cat { view-transition-name: logo; }
+.brand .wordmark, .lockup .wordmark { view-transition-name: wordmark; }
+.bar .search, .hero .search { view-transition-name: search; }
+.nav { view-transition-name: nav; }
+.tabbar { view-transition-name: tabbar; }
+#mframe { view-transition-name: frame; }
+.meme figure img { view-transition-name: meme; }
+::view-transition-group(*) { animation-duration: var(--dur-slow); animation-timing-function: var(--ease); }
+::view-transition-old(root) { animation: .45s var(--ease) both slide-out; }
+::view-transition-new(root) { animation: .45s var(--ease) both slide-in; }
+:root[data-dir="back"]::view-transition-old(root) { animation-name: slide-out-back; }
+:root[data-dir="back"]::view-transition-new(root) { animation-name: slide-in-back; }
+@keyframes slide-out { to { opacity: 0; transform: translateX(-60px); } }
+@keyframes slide-in { from { opacity: 0; transform: translateX(60px); } }
+@keyframes slide-out-back { to { opacity: 0; transform: translateX(60px); } }
+@keyframes slide-in-back { from { opacity: 0; transform: translateX(-60px); } }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 :root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
   transition: none !important; animation: none !important; }

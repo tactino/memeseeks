@@ -66,7 +66,7 @@ Kept to what changes the experience; each has a sensible default.
 |---|---|
 | 主题 | 纸色 / 夜间 |
 | 蒙德里安边框 | 开 / 关 |
-| 开场动画 | 开 / 关 (it plays once per visit, not on every page; shown once the entrance exists) |
+| 开场动画 | 开 / 关 (it plays once per visit, not on every page, and never when opening straight into 刷梗) |
 | 动效 | 完整 / 减少: no cat animations, no slides (the system's reduce-motion setting always wins) |
 | 网上搜索 | 开 / 关 (shown only when the server was started with a web source, which is itself off by default) |
 | 来源文件夹 | the watched folders: add (a path on the computer running the server), remove; the collector's inbox stays |
@@ -152,9 +152,13 @@ The nose rises and shrinks as the mouth opens and disappears at half its size (n
 
 ## Motion
 
-- Page changes slide like presentation slides: the logo, the wordmark and an opened meme fly between
-  pages (shared elements); the rest slides left, or right when going back. Uses View Transitions and
-  falls back to an instant change.
+- Page changes slide like presentation slides: the logo, the wordmark, the search box and an opened meme
+  fly between pages (shared elements; a card's picture grows into its meme page and shrinks back into
+  the card on 返回); the frame, the header links and the phone bar stay put; the rest slides left, or right
+  when going back. Uses View Transitions and falls back to an instant change. Reloading a page in place
+  (pull to refresh, new memes indexed) does not slide.
+- The entrance hides the page from the first paint (the last known settings are kept in the browser for
+  that) and fades it in while the lockup glides to the logo's place on the page.
 - `--dur-fast` 150 ms for feedback, `--dur` 350 ms for small moves, `--dur-slow` 550 ms for page changes;
   `--ease` for moves, `--ease-out` for things appearing.
 - `prefers-reduced-motion`: no entrance, no slides, no cat animations; everything still works.

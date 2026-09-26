@@ -12,12 +12,17 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="/api/custom.css">
 <script>
-  // the last known theme and frame, so the first paint already matches the settings
+  // the last known settings, so the first paint already matches them
   try {
-    const t = localStorage.getItem("memeseeks-theme"), f = localStorage.getItem("memeseeks-frame");
-    if (t === "night") document.documentElement.dataset.theme = "night";
-    if (f === "off") document.documentElement.dataset.frame = "off";
-    if (localStorage.getItem("memeseeks-motion") === "reduced") document.documentElement.dataset.motion = "reduced";
+    const root = document.documentElement, get = (k) => localStorage.getItem(`memeseeks-${k}`);
+    if (get("theme") === "night") root.dataset.theme = "night";
+    if (get("frame") === "off") root.dataset.frame = "off";
+    if (get("motion") === "reduced") root.dataset.motion = "reduced";
+    // the entrance plays once per visit: hide the page until it has
+    if (get("intro") !== "off" && get("motion") !== "reduced" && !sessionStorage.getItem("memeseeks-intro")
+        && !matchMedia("(prefers-reduced-motion: reduce)").matches && new URLSearchParams(location.search).get("view") !== "feed") {
+      root.dataset.intro = "wait";
+    }
   } catch (e) { /* storage blocked: the settings apply a moment later */ }
 </script>
 </head>

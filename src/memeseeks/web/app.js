@@ -114,6 +114,7 @@ function applySettings(s) {
     localStorage.setItem("memeseeks-theme", s.theme);
     localStorage.setItem("memeseeks-frame", s.frame ? "on" : "off");
     localStorage.setItem("memeseeks-motion", s.motion);
+    localStorage.setItem("memeseeks-intro", s.intro ? "on" : "off");
   } catch (e) { /* storage blocked */ }
   $('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue("--paper").trim();
   Frame.draw();
@@ -143,7 +144,7 @@ async function upload(files, album) {
   const parts = [added && `已上传 ${added} 张到${into}，建好索引后就会出现`, had && `${had} 张本来就在图库里`, failed.length && `${failed.length} 张没传上：${failed[0]}`];
   toast(parts.filter(Boolean).join("；"), failed.length > 0);
   if (added) whenIndexed(location.search);
-  else if (had && album) render();
+  else if (had && album) render({ slide: false });
 }
 
 async function whenIndexed(page) {  // show the new memes once the server has indexed them, if still on that page
@@ -153,7 +154,7 @@ async function whenIndexed(page) {  // show the new memes once the server has in
     if (!s || !s.indexing) return;  // started with --no-watch: nothing indexes in the background
     if (!s.indexing.pending && !s.indexing.running) break;
   }
-  if (location.search === page) render();
+  if (location.search === page) render({ slide: false });
 }
 
 function uploadButton(album) {
@@ -401,13 +402,15 @@ async function memePage({ id }) {
     if (!confirm(own ? "把这张梗图移出图库？你文件夹里的原图不会被删除，只是不再显示。" : "把这张梗图移出图库？它会被移到图库的 rejected 文件夹。")) return;
     try { await request("POST", "/api/memes/remove", { ids: [m.id] }); toast("已移出图库"); history.back(); } catch (err) { toast(err.message, true); }
   } });
+  const picture = h("img", { src: m.image, alt: text.slice(0, 120) || "梗图" });
+  await Promise.race([picture.decode().catch(() => {}), new Promise((r) => setTimeout(r, 400))]);
   const added = m.added ? new Date(m.added * 1000).toISOString().slice(0, 10) : "";
   const sources = own
     ? h("p.notice", { text: `你自己的文件夹：${m.relpath}` })
     : h("ul.sources", {}, m.sources.map((s) => h("li", {}, `${s.site || "网页"} · `,
       s.page_url ? h("a", { href: s.page_url, target: "_blank", rel: "noopener noreferrer", text: `${s.page_title || "原帖"} ↗` }) : (s.page_title || ""))));
   const out = [h("div.meme", {},
-    h("figure", {}, h("a", { href: `?view=feed&meme=${m.id}`, title: "全屏，接着刷相似的梗" }, h("img", { src: m.image, alt: text.slice(0, 120) || "梗图" }))),
+    h("figure", {}, h("a", { href: `?view=feed&meme=${m.id}`, title: "全屏，接着刷相似的梗" }, picture)),
     h("aside", {},
       h("div.kicker", { text: [pad(m.no), added && `进库于 ${added}`].filter(Boolean).join(" · ") }),
       text ? [h("h3", { text: "图中文字" }), h("blockquote", { text })] : null,
@@ -541,6 +544,7 @@ async function settingsPage() {
     h("div.settings", {},
       row("主题", choice("theme", [["paper", "纸色"], ["night", "夜间"]])),
       row("蒙德里安边框", choice("frame", [[true, "开"], [false, "关"]])),
+      row("开场动画", choice("intro", [[true, "开"], [false, "关"]]), h("p.hint", { text: "每次打开迷因捕手时播放一次。" })),
       row("动效", choice("motion", [["full", "完整"], ["reduced", "减少"]]),
         h("p.hint", { text: "减少：不播放小猫动画和翻页滑动。系统设置了减少动态效果时，总是减少。" })),
       online.enabled ? row("网上搜索", choice("online", [[true, "开"], [false, "关"]]),
@@ -612,7 +616,7 @@ const poppable = (svg) => { svg.classList.add("pop-cat"); svg.addEventListener("
     y0 = null;
     if (pull < GO) { setPull(0, true); Cat.set(cat, 0, 1); return; }
     setPull(GO * 0.8, true);  // hold the page down while it reloads
-    const done = render();
+    const done = render({ slide: false });  // reload in place
     const t0 = performance.now();
     const step = (now) => {  // open (220 ms), then spit the bubble (200 ms)
       const t = now - t0;
@@ -875,20 +879,27 @@ function route() {
 
 function go(url, { replace = false } = {}) {
   history[replace ? "replaceState" : "pushState"]({ app: 1 }, "", url);  // app: going back stays in the app
-  render();
+  return render({ back: false });
 }
 
 let renderToken = 0;
 let leavePage = null;  // a page can clean up (listeners) before the next one replaces it: node._leave
-async function render() {
+let rendered = false, flying = null;  // flying: the meme whose picture flies between a card and its page
+// one picture may carry the name: a meme page's own picture gives way to the card that flies
+const unnameMeme = () => view.querySelectorAll(".meme figure img").forEach((img) => { img.style.viewTransitionName = "none"; });
+async function render({ back = false, slide = true } = {}) {
   const r = route();
   const token = ++renderToken;
-  document.body.dataset.view = r.view;
   document.title = "迷因捕手";
-  const tab = { album: "albums", albums: "albums", home: "home", review: "review", settings: "settings", feed: "feed" }[r.view] || "";
   uploadTarget = null;
-  document.querySelectorAll("[data-tab]").forEach((a) => (a.dataset.tab === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
-  $("#bar-q").value = r.view === "search" ? r.q : "";
+  // the header follows the page; switched with the page itself, so a slide never shows both logos at once
+  const frame = () => {
+    document.body.dataset.view = r.view;
+    const tab = { album: "albums", albums: "albums", home: "home", review: "review", settings: "settings", feed: "feed" }[r.view] || "";
+    document.querySelectorAll("[data-tab]").forEach((a) => (a.dataset.tab === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+    $("#bar-q").value = r.view === "search" ? r.q : "";
+  };
+  if (!rendered) frame();
   let nodes;
   const slow = setTimeout(() => { if (token === renderToken) view.replaceChildren(loader()); }, 350);
   try {
@@ -899,10 +910,26 @@ async function render() {
   clearTimeout(slow);
   const leave = [].concat(nodes).map((n) => n && n._leave).find(Boolean) || null;
   if (token !== renderToken) { if (leave) leave(); return; }  // a newer navigation won
-  if (leavePage) leavePage();
-  leavePage = leave;
-  view.replaceChildren(...[].concat(nodes));
-  window.scrollTo(0, 0);
+  const swap = () => {
+    frame();
+    if (leavePage) leavePage();
+    leavePage = leave;
+    view.replaceChildren(...[].concat(nodes));
+    window.scrollTo(0, 0);
+    if (back && flying) {  // back from a meme: its picture flies home into its card
+      const img = view.querySelector(`a.card[href$="id=${flying}"] img`);
+      if (img) { unnameMeme(); img.style.viewTransitionName = "meme"; }
+    }
+    if (r.view !== "meme") flying = null;
+  };
+  if (slide && rendered && document.startViewTransition && !reduceMotion()) {
+    document.documentElement.dataset.dir = back ? "back" : "forward";
+    const t = document.startViewTransition(swap);
+    t.ready.catch(() => {});  // skipped (say, a second click mid-way): the page still changes
+    t.finished.catch(() => {}).then(() => view.querySelectorAll("img[style*='view-transition-name']").forEach((img) => { img.style.viewTransitionName = ""; }));
+    await t.updateCallbackDone;
+  } else swap();
+  rendered = true;
   refreshReviewCount();
 }
 
@@ -912,6 +939,12 @@ document.addEventListener("click", (e) => {
   const url = new URL(a.href, location.href);
   if (url.origin !== location.origin || url.pathname !== location.pathname) return;  // /api/... links, other sites
   e.preventDefault();
+  const card = a.matches("a.card") && a.querySelector("img");
+  if (card) {  // the card's picture grows into the meme page's
+    unnameMeme();
+    card.style.viewTransitionName = "meme";
+    flying = url.searchParams.get("id");
+  }
   go(url.search || "./");
 });
 document.addEventListener("submit", (e) => {
@@ -921,7 +954,7 @@ document.addEventListener("submit", (e) => {
   const q = form.elements.q.value.trim();
   go(q ? `?q=${encodeURIComponent(q)}` : "./");
 });
-addEventListener("popstate", render);
+addEventListener("popstate", () => render({ back: true }));
 
 async function refreshReviewCount() {
   try {
@@ -931,10 +964,70 @@ async function refreshReviewCount() {
   } catch (err) { $("#nav-review").hidden = true; }
 }
 
+// ---------------- the entrance (docs/design.md, "The cat"): once per visit ----------------
+// The logo and the name appear together; the cat pops twice, opens into the logo and the bubble pops; then
+// the lockup glides to its place on the page while the page fades in. A click skips it.
+async function intro(firstRender) {
+  const root = document.documentElement;
+  await settingsReady;
+  if (!settings.intro || Cat.still()) { delete root.dataset.intro; return; }
+  try { sessionStorage.setItem("memeseeks-intro", "1"); } catch (e) { /* storage blocked */ }
+  const P = window.POPCAT, K = "#161411", [mx, my] = P.mc;
+  // pop, pop (quick half-opens), then the open that lands on the logo; all as numbers between two states
+  const KT = "0;0.127;0.255;0.364;0.491;0.618;0.727;1";
+  const SP = "0.3 0 0.3 1;0.3 0 0.3 1;0 0 1 1;0.3 0 0.3 1;0.3 0 0.3 1;0 0 1 1;0.42 0 0.58 1";
+  const morph = (a, b, extra = "") => {
+    const half = Cat.lerp(a, b, 0.55);
+    return `<path d="${a}" fill="${K}"><animate attributeName="d" begin="0.3s" dur="1.1s" fill="freeze" calcMode="spline"
+      keyTimes="${KT}" keySplines="${SP}" values="${[a, half, a, a, half, a, a, b].join(";")}"/>${extra}</path>`;
+  };
+  const noseGoes = `<animate attributeName="opacity" begin="0.3s" dur="1.1s" fill="freeze" calcMode="discrete" keyTimes="0;0.884" values="1;0"/>`;
+  const logo = h("div.intro-logo");
+  logo.innerHTML = `<svg viewBox="${P.vb}" aria-hidden="true">
+    <path d="${P.body}" fill="#FFD21F" stroke="${K}" stroke-width="15" stroke-linejoin="round"/>
+    ${morph(P.closed.eyes[0], P.final.eyes[0])}${morph(P.closed.eyes[1], P.final.eyes[1])}
+    ${morph(P.closed.nose, P.final.nose, noseGoes)}${morph(P.closed.mouth, P.final.mouth)}
+    <g transform="translate(${mx} ${my})"><g transform="scale(0)"><animateTransform attributeName="transform" type="scale"
+      begin="1.4s" dur="0.35s" fill="freeze" keyTimes="0;0.6;1" values="0;1.12;1"/>
+      <g transform="translate(${-mx} ${-my})">${P.bubble}</g></g></g></svg>`;
+  const name = h("span.wordmark.intro-name", {}, h("span.zh", { text: "迷因捕手" }), h("span.en", {}, [..."MEMESEEKS"].map((c) => h("i", { text: c }))));
+  const stage = h("div", { id: "intro", "aria-hidden": "true" }, h("div.intro-lock", {}, logo, name));
+  document.body.append(stage);
+  root.dataset.intro = "run";
+
+  let done = false, target = null;
+  const finish = () => {
+    done = true;
+    if (target) target.forEach((el) => el.classList.remove("intro-hide"));
+    stage.remove();
+    delete root.dataset.intro;
+  };
+  stage.addEventListener("click", () => { if (!done) finish(); });
+  await Promise.all([new Promise((r) => setTimeout(r, 2250)), firstRender]);
+  if (done) return;
+  const visible = (el) => el && el.getClientRects().length > 0;
+  const onHome = $("#view .lockup");
+  target = onHome ? [$(".lockup .cat"), $(".lockup .wordmark")] : [$(".brand .cat"), $(".brand .wordmark")];
+  if (!target.every(visible)) { finish(); return; }
+  target.forEach((el) => el.classList.add("intro-hide"));
+  const fly = (from, to, by) => {
+    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect(), k = b[by] / a[by];
+    return from.animate([{ transform: "none" }, { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${k})` }],
+      { duration: 800, easing: "cubic-bezier(.65, 0, .25, 1)", fill: "forwards" }).finished;
+  };
+  delete root.dataset.intro;  // the page fades in while the lockup glides
+  stage.classList.add("gliding");
+  await Promise.all([fly(logo, target[0], "height"), fly(name, target[1], "width")]).catch(() => {});
+  if (!done) finish();
+}
+
 // ---------------- start ----------------
 poppable(Cat.draw($(".brand .cat")));
 Frame.draw();
-render();
+{
+  const first = render();
+  if (document.documentElement.dataset.intro) intro(first);
+}
 
 if ("serviceWorker" in navigator && window.isSecureContext) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
