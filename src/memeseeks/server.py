@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import hmac
+import io
 import json
 from pathlib import Path
 
@@ -56,7 +58,9 @@ def _with_urls(items: list[dict]) -> list[dict]:
     return [dict(m, image=f"/api/image/{m['id']}", thumb=f"/api/thumb/{m['id']}") for m in items]
 
 
-def create_app(service, token: str | None = None, online=None, inbox=None, indexer=None, warmup=None) -> FastAPI:
+def create_app(service, token: str | None = None, online=None, inbox=None, indexer=None, warmup=None,
+               phone=None, lan: bool = False) -> FastAPI:
+    """lan: this app is the one 手机访问 serves on the LAN address (see phone.py), behind the token."""
     app = FastAPI(title="memeseeks", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.service = service
 
@@ -79,7 +83,8 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
             # The inbox checks its own key (the browser script has that, not the token).
             if (request.url.path.startswith("/api/") and request.url.path not in ("/api/inbox", "/api/inbox/albums")
                     and not _authorized(request)):
-                return JSONResponse({"error": "token required: open the link printed by `memeseeks serve`"},
+                return JSONResponse({"error": "需要口令：请扫电脑上「设置 → 手机访问」里的二维码打开"
+                                              "（或者用 memeseeks serve 打印的链接）"},
                                     status_code=401)
             response = await call_next(request)
             if request.url.path in ("/", "/index.html") and _matches(request.query_params.get("token")):
@@ -347,6 +352,47 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
     @app.post("/api/seen")
     async def seen(request: Request):
         return {"seen": service.mark_seen(_ids(await _json_body(request)))}
+
+    # ---------------- 手机访问 (see phone.py) ----------------
+    def _this_computer_only():
+        if lan or phone is None:
+            raise HTTPException(403, "只能在运行迷因捕手的这台电脑上改")
+
+    @app.get("/api/phone")
+    def phone_status():
+        # the link and its token only for this computer; a phone learns that it is on, nothing more
+        return phone.status(local=not lan) if phone is not None else {"available": False}
+
+    @app.put("/api/phone")
+    async def phone_set(request: Request):
+        _this_computer_only()
+        body = await _json_body(request)
+        on, address = body.get("on"), body.get("address")
+        if not isinstance(on, bool) or not (address is None or isinstance(address, str)):
+            raise HTTPException(400, "bad request: on must be true or false, address a string")
+        return await asyncio.to_thread(phone.set, on, address)  # starting a server takes a moment
+
+    @app.post("/api/phone/rotate")
+    async def phone_rotate(request: Request):
+        _this_computer_only()
+        await _json_body(request)  # JSON only, like every change: no other site can ask for it
+        return await asyncio.to_thread(phone.rotate)
+
+    @app.get("/api/phone/qr.svg")
+    def phone_qr():
+        _this_computer_only()
+        url = phone.url()
+        if not url:
+            raise HTTPException(404, "手机访问没有开启")
+        try:
+            import segno
+        except ImportError as exc:
+            raise HTTPException(501, 'the QR code needs segno: pip install -e ".[serve]"') from exc
+        buf = io.BytesIO()
+        # whole pixels per module, the standard 4-module quiet zone, crisp edges: shown at its own size
+        segno.make(url, error="m").save(buf, kind="svg", scale=5, border=4, dark="#161411", light="#ffffff", xmldecl=False)
+        svg = buf.getvalue().replace(b"<svg ", b'<svg shape-rendering="crispEdges" ', 1)
+        return Response(svg, media_type="image/svg+xml", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):

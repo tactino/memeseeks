@@ -503,7 +503,9 @@ async function reviewPage() {
 
 async function settingsPage() {
   document.title = "设置 · 迷因捕手";
-  const [s, sources, online] = await Promise.all([api("/api/settings"), api("/api/sources"), getOnlineConfig()]);
+  const [s, sources, online, phoneFirst] = await Promise.all([api("/api/settings"), api("/api/sources"), getOnlineConfig(),
+    api("/api/phone").catch(() => ({ available: false }))]);
+  let phone = phoneFirst;
   applySettings(s);
   const choice = (key, options) => {  // [[value, label], ...]: saved and applied at once
     const seg = h("span.seg", { role: "group" });
@@ -536,6 +538,46 @@ async function settingsPage() {
     try { showFolders(await request("POST", "/api/sources", { path: path.value })); path.value = ""; toast("已添加，正在建立索引"); watchReady(); } catch (err) { toast(err.message, true); }
   });
 
+  // 手机访问: this computer shows the switch and the code; on the phone itself, just whether it is on
+  const phoneBox = h("div");
+  const setPhone = async (body) => {
+    phoneBox.querySelectorAll("button, select").forEach((el) => { el.disabled = true; });
+    try { showPhone(await request("PUT", "/api/phone", body)); } catch (err) { toast(err.message, true); showPhone(phone); }
+  };
+  const rotatePhone = async () => {
+    if (!confirm("换一个口令？之前扫过码的手机要重新扫。")) return;
+    try { showPhone(await request("POST", "/api/phone/rotate", {})); toast("口令已换"); } catch (err) { toast(err.message, true); }
+  };
+  function showPhone(p) {
+    phone = p;
+    if (!p.available) {
+      phoneBox.replaceChildren(h("p.hint", { text: "迷因捕手是用 --host 启动的，本来就能从局域网打开。" }));
+      return;
+    }
+    if (!("url" in p)) {
+      phoneBox.replaceChildren(h("p.hint", { text: p.on ? "已开启。要关掉或换口令，请在运行迷因捕手的电脑上打开设置。" : "没有开启。" }));
+      return;
+    }
+    const seg = h("span.seg", { role: "group", "aria-label": "手机访问" }, [[false, "关"], [true, "开"]].map(([value, label]) =>
+      h("button", { type: "button", text: label, "aria-pressed": String(p.on === value), onclick: () => { if (p.on !== value) setPhone({ on: value }); } })));
+    const out = [seg];
+    if (p.on && p.error) out.push(h("p.notice.error", { text: `没能开启：${p.error}` }));
+    if (p.on && p.url) {
+      const pick = p.addresses.length > 1 ? h("select", { "aria-label": "用哪个地址" }, p.addresses.map((a) => h("option", { value: a, text: a, selected: a === p.address }))) : null;
+      if (pick) pick.addEventListener("change", () => setPhone({ on: true, address: pick.value }));
+      out.push(h("div.phone", {},
+        h("img.qr", { src: `/api/phone/qr.svg?t=${Date.now()}`, alt: "用手机扫这个二维码打开迷因捕手" }),  // at its own size: crisp
+        h("div", {},
+          h("p", { text: "用手机相机扫码，就能在手机上打开。手机和这台电脑要连着同一个 Wi-Fi。" }),
+          h("code.phone-url", { text: p.url }),
+          pick ? h("label.phone-addr", {}, "扫不开？换个地址试试：", pick) : null,
+          h("button.linkish.danger", { type: "button", text: "换一个口令", onclick: rotatePhone }))));
+    }
+    out.push(h("p.hint", { text: "打开后，同一个 Wi-Fi 下知道口令的设备都能打开你的图库，口令就在二维码里。第一次打开时 Windows 可能会问要不要允许它访问网络，选「允许」。手机上能搜索、刷梗和保存图片；复制和分享需要 HTTPS，暂时还不行。" }));
+    phoneBox.replaceChildren(...out);
+  }
+  showPhone(phone);
+
   return [h("div.results-head", {}, h("h1.page-title", { text: "设置" }), h("span.meta", { text: "保存在图库里，用手机打开也一样" })),
     h("div.settings", {},
       row("主题", choice("theme", [["paper", "纸色"], ["night", "夜间"]])),
@@ -547,6 +589,7 @@ async function settingsPage() {
         h("p.hint", { text: `搜索时也到 ${online.provider} 上找，结果单独列在最后。` })) : null,
       row("来源文件夹", folders, add,
         h("p.hint", { text: "这些文件夹里（包括子文件夹）的图片会被收录。原图留在原处，迷因捕手不会移动或修改它们。填的是运行迷因捕手的这台电脑上的路径。" })),
+      row("手机访问", phoneBox),
       row("连接浏览器", ...connectSteps()))];
 }
 

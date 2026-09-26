@@ -177,7 +177,21 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
               "and loads its images from there")
     if watch:
         print(f"new memes in your folders are indexed automatically; inbox: {inbox.folder}")
-    app = create_app(service, token=token, online=online_config, inbox=inbox, indexer=indexer, warmup=warmup)
+    phone = None
+    if host in LOCAL_HOSTS:  # 手机访问 in 设置: a second server on the LAN address, behind a token (phone.py)
+        from .phone import Phone
+
+        phone = Phone(lib.root, port, make_app=lambda phone_token: create_app(
+            service, token=phone_token, online=online_config, inbox=inbox, indexer=indexer, warmup=warmup,
+            phone=phone, lan=True))
+    app = create_app(service, token=token, online=online_config, inbox=inbox, indexer=indexer, warmup=warmup,
+                     phone=phone)
+    if phone is not None:
+        phone.resume()
+        if phone.address:
+            print(f"手机访问 is on: http://{phone.address}:{port}/ (scan the code under 设置 to open it with the token)")
+        elif phone.error:
+            print(f"手机访问 could not start: {phone.error}", file=sys.stderr)
     if open_browser:
         threading.Thread(target=_open_when_ready, args=(url,), daemon=True).start()
     uvicorn.run(app, host=host, port=port, log_level="warning")

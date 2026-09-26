@@ -109,7 +109,7 @@ On the computer running it (`localhost`) it also installs as an app from the bro
 
 **New memes are picked up by themselves.** While `serve` runs, images you add to any library folder are indexed in the background and become searchable within about a minute (`--no-watch` turns this off). On Windows the indexing runs at below-normal priority, so the rest of the computer stays responsive. The library also has an inbox folder, `<library>/inbox`, for memes that don't belong to one of your folders.
 
-**From your phone:** run `memeseeks serve --host 0.0.0.0 --token <something secret>` (with the installer's version: its launcher, e.g. `D:\memeseeks\memeseeks.cmd`, with the same options) and open the printed link with your computer's LAN address. Over plain `http` the phone can search and **save**; **copy** and **share** (and installing as an app) need `localhost` or HTTPS, because browsers only allow them in a secure context.
+**From your phone:** on the computer, turn on 设置 → 手机访问 and scan the QR code with the phone (both on the same Wi-Fi). The code carries a token: only devices that know it can open your library, and 换一个口令 locks out every phone that scanned the old one. Windows may ask once whether to allow network access; allow it. Over plain `http` the phone can search, 刷梗 and **save**; **copy** and **share** (and installing as an app) need HTTPS, because browsers only allow them in a secure context. (By hand instead: `memeseeks serve --host 0.0.0.0 --token <something secret>`.)
 
 ### Collecting memes from community pages
 

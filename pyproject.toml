@@ -18,8 +18,8 @@ ml = [
   "sentence-transformers>=3.0",
   "rapidocr_onnxruntime==1.4.4",
 ]
-serve = ["fastapi>=0.110", "uvicorn>=0.29"]
-dev = ["pytest>=8", "httpx2", "fastapi>=0.110", "uvicorn>=0.29"]
+serve = ["fastapi>=0.110", "uvicorn>=0.29", "segno>=1.5"]
+dev = ["pytest>=8", "httpx2", "fastapi>=0.110", "uvicorn>=0.29", "segno>=1.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

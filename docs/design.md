@@ -70,6 +70,7 @@ Kept to what changes the experience; each has a sensible default.
 | 动效 | 完整 / 减少: no cat animations, no slides (the system's reduce-motion setting always wins) |
 | 网上搜索 | 开 / 关 (shown only when the server was started with a web source, which is itself off by default) |
 | 来源文件夹 | the watched folders: add (a path on the computer running the server), remove; the collector's inbox stays |
+| 手机访问 | 关 / 开: a second server on this computer's LAN address, behind a token, shown as a QR code (and the link) on this computer only; 换一个口令; which address, when there are several. A phone sees only that it is on. Kept in the library (`phone.json`, `phone-token`) |
 | 连接浏览器 | install the collector (the steps live here, not on the home page) |
 
 Uploading is on 全部 and every 图集 page (a 上传 button; on phones it opens the photo picker) and by dropping
