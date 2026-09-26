@@ -27,7 +27,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu  
 pip install -e ".[ml,serve]"
 ```
 
-The first run downloads about 4 GB of models into the Hugging Face cache (`HF_HOME`). Indexing on a laptop CPU takes about 3.5 s per image (roughly an hour per 1,000 memes); only new images are processed on later runs.
+The first run downloads about 3.9 GB of models into the Hugging Face cache (`HF_HOME`); the web app is up at once and shows the progress, and search works as soon as the download is done. **From China**, set `HF_ENDPOINT=https://hf-mirror.com` before starting. Indexing on a laptop CPU takes about 3.5 s per image (roughly an hour per 1,000 memes); only new images are processed on later runs.
 
 **Windows + Anaconda:** don't build the venv from Anaconda's Python if you use torch ≥ 2.9 — Anaconda ships an older MSVC runtime next to `python.exe` and torch fails with `WinError 1114 … c10.dll`. Use a python.org or `uv`-managed Python instead (`uv venv --managed-python --python 3.12`).
 
@@ -71,7 +71,15 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 ### The web app
 
-The home screen shows 旧梗重温 — memes you have not seen in a while — and a search box. Tap a meme for 复制 / 保存 / 分享. On the computer running it (`localhost`) it also installs as an app from the browser menu.
+It is a personal meme collection, a little like a music app is for songs:
+
+- **Search** by what you remember; confident matches first, the rest folded under 可能相关.
+- **图集** (like playlists): 全部, 我喜欢 and your own. Add a meme from its page with 加入图集; 上传 on any 图集 page, or drop images anywhere on the page.
+- **刷梗**: full screen, one meme after another — a 图集 in order or shuffled, the memes similar to the one you tapped, or (from the header) the ones you have not seen for longest. Swipe, scroll or use the arrow keys.
+- The home page has 今日一梗, your 图集 and 旧梗重温. Tap a meme for 复制 / 保存 / 分享 and its source.
+- **设置**: 纸色 / 夜间, the Mondrian frame, the entrance animation, less motion, web search, your folders and connecting the browser. Settings live in the library, so every device sees them; a `custom.css` in the library folder is loaded after the app's styles.
+
+On the computer running it (`localhost`) it also installs as an app from the browser menu.
 
 **New memes are picked up by themselves.** While `serve` runs, images you add to any library folder are indexed in the background and become searchable within about a minute (`--no-watch` turns this off). On Windows the indexing runs at below-normal priority, so the rest of the computer stays responsive. The library also has an inbox folder, `<library>/inbox`, for memes that don't belong to one of your folders.
 
@@ -82,11 +90,12 @@ The home screen shows 旧梗重温 — memes you have not seen in a while — an
 A userscript adds a 采集 meme button to the pages you read. Click it and it lists the images on that page; the ones you tick go into your library's inbox, together with the site, the page link and its title, and are searchable within about a minute. It has special handling for 百度贴吧 (original-size images from every floor on the page), 小红书 (all images of a note) and 豆瓣小组 (large versions of topic and reply images), and a generic mode for any other site.
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) (Firefox or Chrome).
-2. With `memeseeks serve` running, open the web app and click 「从社区采集 meme：连接浏览器」 → 安装采集 meme 脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
+2. With `memeseeks serve` running, open the web app's 设置 → 连接浏览器 → 安装采集 meme 脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
+3. On any page, click the cat (drag it wherever you like), tick the images, pick where they go under 放进, and 采集.
 
-Collected images with little text (fewer than 15 characters) are probably 表情包, so they wait under 「待确认」 on the home page until you choose 要 (into the library) or 不要 (moved to `<library>/rejected`, not deleted; undo is one click). Your decisions are kept on your machine to train a personal classifier later. Images in your own folders are never held back.
+Collected images with little text (fewer than 15 characters) are probably 表情包, so they wait under 「待确认」 in the header until you choose 要 (into the library) or 不要 (moved to `<library>/rejected`, not deleted; undo is one click). Your decisions are kept on your machine to train a personal classifier later. Images in your own folders are never held back.
 
-It only acts when you click, only on the page you are looking at, and downloads at most two images a second. It never turns pages or collects in the background, and it sends nothing besides the image, the site name, the page link and the page title. You can hide the button on a site from the Violentmonkey menu.
+It only acts when you click, only on the page you are looking at, and downloads at most two images a second. It never turns pages or collects in the background, and it sends nothing besides the image, the site name, the page link, the page title and the 图集 you picked. You can hide the button on a site, or put the cat back in its corner, from the Violentmonkey menu.
 
 ### Online search (optional)
 

@@ -163,6 +163,13 @@ The nose rises and shrinks as the mouth opens and disappears at half its size (n
   `--ease` for moves, `--ease-out` for things appearing.
 - `prefers-reduced-motion`: no entrance, no slides, no cat animations; everything still works.
 
+## First run
+
+The server listens at once; the models load behind it (`warmup.py`). On the first run that means
+downloading them (about 3.9 GB), so a bar under the header says how far it has got, and that everything but
+search already works; a search made meanwhile shows the loader and runs by itself once the models are in.
+If they cannot be fetched, the bar turns red and says why (from China: set `HF_ENDPOINT` to a mirror).
+
 ## The browser collector (采集 meme)
 
 It runs on other people's sites, so it stays small and isolated: a shadow root, system fonts only, short

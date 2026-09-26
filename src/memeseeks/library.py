@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import os
 from pathlib import Path
 
@@ -39,10 +40,13 @@ class Models:
 
     def __init__(self, ocr=None, clip=None, bge=None, vlm=None):
         self._models = {"ocr": ocr, "clip": clip, "bge": bge, "vlm": vlm}
+        self._lock = threading.Lock()  # the warm-up, the indexer and a search may all ask at once
 
     def get(self, name: str):
         if self._models[name] is None:
-            self._models[name] = _make(name)
+            with self._lock:
+                if self._models[name] is None:  # built once, however many threads were waiting
+                    self._models[name] = _make(name)
         return self._models[name]
 
 

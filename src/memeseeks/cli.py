@@ -6,6 +6,8 @@ import argparse
 import json
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 
 from . import __version__
@@ -107,7 +109,6 @@ def _answers(url: str, timeout: float = 1.0) -> bool:
 
 def _open_when_ready(url: str, probe=_answers, opener=None, wait: float = 120.0, step: float = 0.5) -> bool:
     """Open `url` in the browser as soon as the server answers; give up after `wait` seconds."""
-    import time
     import webbrowser
 
     deadline = time.monotonic() + wait
@@ -117,6 +118,16 @@ def _open_when_ready(url: str, probe=_answers, opener=None, wait: float = 120.0,
             return True
         time.sleep(step)
     return False
+
+
+def _report_download(warmup, downloaded_bytes, every: float = 15.0) -> None:
+    """The terminal's view of the first download (the launcher's window shows it)."""
+    while warmup.status()["state"] == "loading":
+        time.sleep(every)
+        if warmup.status()["state"] == "loading":
+            print(f"models: {downloaded_bytes(warmup.cache) / 1e9:.1f} / {warmup.expected / 1e9:.1f} GB")
+    s = warmup.status()
+    print("models ready" if s["state"] == "ready" else f"the models could not load: {s['error']}", flush=True)
 
 
 def _serve(lib: Library, models: Models, host: str, port: int, token: str | None, online: str = "off",
@@ -140,17 +151,22 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
         return _fail('the web app needs the serve extra: pip install -e ".[serve]"')
     from .inbox import Inbox
     from .indexer import BackgroundIndexer
-    from .search import EmptyLibrary as _Empty
     from .service import LibraryService
+    from .warmup import Warmup, downloaded_bytes
 
     inbox = Inbox(lib)
     inbox.ensure_source()  # a folder like any other: the browser script and you can both drop memes here
     service = LibraryService(lib, models)
-    try:
-        service.warm()  # load the index and models now, not on the first search
-    except _Empty as exc:
-        print(f"note: {exc}", file=sys.stderr)
+    indexer = BackgroundIndexer(lib, models) if watch else None
+    # The server listens at once; the models load (on the first run: download) behind it, then the indexer
+    # starts. The web app shows the progress; search waits for it.
+    warmup = Warmup(service, then=indexer.start if indexer else None)
+    warmup.start()
     print(f"memeseeks is at {url}")
+    if warmup.downloading:
+        print(f"first run: downloading the models (about {warmup.expected / 1e9:.1f} GB) into {warmup.cache}; "
+              "the web app shows how far it has got")
+        threading.Thread(target=_report_download, args=(warmup, downloaded_bytes), daemon=True).start()
     if host in ("0.0.0.0", "::"):
         print("from your phone use this computer's LAN address instead of 127.0.0.1; over plain http "
               "only 保存 works there — copy and share need localhost or HTTPS")
@@ -159,15 +175,10 @@ def _serve(lib: Library, models: Models, host: str, port: int, token: str | None
         online_config = create_online(online, os.environ.get("MEMESEEKS_KLIPY_KEY", ""), lib.root)
         print(f"online search is on: the browser also sends your search words to {online_config.provider} "
               "and loads its images from there")
-    indexer = None
     if watch:
-        indexer = BackgroundIndexer(lib, models)
-        indexer.start()
         print(f"new memes in your folders are indexed automatically; inbox: {inbox.folder}")
-    app = create_app(service, token=token, online=online_config, inbox=inbox, indexer=indexer)
+    app = create_app(service, token=token, online=online_config, inbox=inbox, indexer=indexer, warmup=warmup)
     if open_browser:
-        import threading
-
         threading.Thread(target=_open_when_ready, args=(url,), daemon=True).start()
     uvicorn.run(app, host=host, port=port, log_level="warning")
     return 0

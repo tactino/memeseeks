@@ -290,6 +290,14 @@ body[data-view="feed"] .bar, body[data-view="feed"] .tabbar { display: none; }
 @media (hover: none) { .feed-nav { display: none; } }
 .meme figure a { display: contents; cursor: zoom-in; }
 
+/* ---------- the first run: downloading the models ---------- */
+.readybar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 var(--s4); padding: 10px 14px;
+  background: var(--inverse-bg); color: var(--inverse-fg); font-size: 14px; border-left: 10px solid var(--accent); }
+.readybar.error { border-left-color: var(--red); }
+.readybar span { flex: 1 1 320px; }
+.readybar .track { flex: 1 1 200px; height: 12px; border: var(--line-thin) solid var(--inverse-fg); }
+.readybar .track i { display: block; height: 100%; background: var(--accent); transition: width .8s var(--ease-out); }
+
 /* ---------- the cat's eggs, and the loader ---------- */
 .pop-cat { cursor: pointer; }
 .popcount { position: fixed; z-index: 45; pointer-events: none; opacity: 0; transition: opacity .35s;

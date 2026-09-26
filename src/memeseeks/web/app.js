@@ -355,7 +355,13 @@ function emptyLibrary() {
 
 async function searchPage({ q }) {
   document.title = `${q} · 迷因捕手`;
-  const [{ matches, maybe }, online] = await Promise.all([api(`/api/search?q=${encodeURIComponent(q)}`), onlineSection(q)]);
+  let found;
+  try { found = await api(`/api/search?q=${encodeURIComponent(q)}`); } catch (err) {
+    if (err.status !== 503) throw err;
+    watchReady();  // the bar above shows how far it has got; this page reloads when it is done
+    return h("section.blank", {}, loader(), h("h2", { text: "还在准备" }), h("p", { text: "模型加载好就会自动搜索「" + q + "」。" }));
+  }
+  const [{ matches, maybe }, online] = await Promise.all([found, onlineSection(q)]);
   const out = [h("div.results-head", {}, h("h1.page-title", { text: matches.length ? `捕到 ${matches.length} 张` : "没有把握的结果" }),
     h("span.meta", { text: `「${q}」` }))];
   if (matches.length) out.push(grid(matches));
@@ -634,6 +640,32 @@ function loader() {
   Cat.loop(cat);
   return h("div.loading", { role: "status" }, cat, h("span.visually-hidden", { text: "正在加载" }));
 }
+
+// ---------------- the first run: the models download while everything but search already works ----------------
+const readyBar = h("div.readybar", { role: "status", hidden: true });
+$(".bar").after(readyBar);
+let modelsReady = true;
+const gb = (n) => (n / 1e9).toFixed(1);
+async function watchReady() {
+  let s;
+  try { s = await api("/api/ready"); } catch (err) { return; }
+  const was = modelsReady;
+  modelsReady = s.state === "ready";
+  if (modelsReady) {
+    readyBar.hidden = true;
+    if (!was && route().view === "search") render({ slide: false });  // the search that had to wait
+    return;
+  }
+  const d = s.download, share = d ? Math.min(0.99, d.done / d.total) : 0;
+  const text = s.state === "error" ? `模型没能加载：${s.error}`
+    : d ? `第一次启动，正在下载模型：${gb(d.done)} / 约 ${gb(d.total)} GB。下完就能搜索，其他功能现在就能用。`
+      : "正在加载模型，马上就能搜索。";
+  readyBar.replaceChildren(h("span", { text }), ...(d ? [h("div.track", {}, h("i", { style: `width: ${(share * 100).toFixed(1)}%` }))] : []));
+  readyBar.classList.toggle("error", s.state === "error");
+  readyBar.hidden = false;
+  if (s.state === "loading") setTimeout(watchReady, 1500);
+}
+watchReady();
 
 // ---------------- 刷梗: full screen, one meme after another (docs/design.md, Pages and navigation) ----------------
 const qs = (params) => new URLSearchParams(Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== "")).toString();

@@ -56,8 +56,9 @@ def _with_urls(items: list[dict]) -> list[dict]:
     return [dict(m, image=f"/api/image/{m['id']}", thumb=f"/api/thumb/{m['id']}") for m in items]
 
 
-def create_app(service, token: str | None = None, online=None, inbox=None, indexer=None) -> FastAPI:
+def create_app(service, token: str | None = None, online=None, inbox=None, indexer=None, warmup=None) -> FastAPI:
     app = FastAPI(title="memeseeks", docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.service = service
 
     def _matches(value: str | None) -> bool:
         return bool(value) and hmac.compare_digest(value.encode(), token.encode())
@@ -99,8 +100,15 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
     async def _library_error(request: Request, exc: Exception):
         return JSONResponse({"error": str(exc)}, status_code=409)
 
+    @app.get("/api/ready")
+    def ready():
+        # the first run downloads the models: the page shows how far it has got (see warmup.py)
+        return warmup.status() if warmup is not None else {"state": "ready", "download": None, "error": None}
+
     @app.get("/api/search")
     def search(q: str = Query(..., min_length=1), maybe: int = Query(12, ge=0, le=60)):
+        if warmup is not None and warmup.status()["state"] != "ready":
+            raise HTTPException(503, "还在准备：模型加载好就能搜索")
         found = service.search(q, maybe_k=maybe)
         return {"matches": _with_urls(found["matches"]), "maybe": _with_urls(found["maybe"])}
 
