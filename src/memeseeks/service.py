@@ -56,6 +56,7 @@ class LibraryService:
         self.removed = Removed(library.root)
         self.settings = Settings(library.root)
         self._numbers, self._numbers_lock = None, threading.Lock()
+        self._t2s, self._simplified = None, {}  # OpenCC, loaded on first use; converted texts
 
     def _index_stamp(self):
         stamps = []
@@ -118,12 +119,24 @@ class LibraryService:
         return self._item(s, pool[pick])
 
     def _item(self, s: Searcher, i: str, score: float | None = None, match: float | None = None) -> dict:
-        item = {"id": i, "score": score, "match": match, "text": display_text(s.text.get(i, "")), "relpath": s.relpath[i],
+        item = {"id": i, "score": score, "match": match, "text": self._script(display_text(s.text.get(i, ""))), "relpath": s.relpath[i],
                 "no": self.numbers(s).get(i)}
         found = self.sources().get(i)
         if found:  # the first place it was collected from
             item["source"] = {k: found[0][k] for k in ("site", "page_url", "page_title") if k in found[0]}
         return item
+
+    def _script(self, text: str) -> str:
+        """繁体字 in simplified characters, unless the settings say to keep them as printed."""
+        if not text or self.settings.get()["script"] != "simplified":
+            return text
+        if text not in self._simplified:
+            if self._t2s is None:
+                from opencc import OpenCC
+
+                self._t2s = OpenCC("t2s")
+            self._simplified[text] = self._t2s.convert(text)
+        return self._simplified[text]
 
     def _hidden(self, s: Searcher) -> set[str]:
         """Not shown anywhere: waiting in 待确认, rejected there, or removed from the library."""

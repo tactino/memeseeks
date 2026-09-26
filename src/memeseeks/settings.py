@@ -17,6 +17,7 @@ CHOICES = {
     "intro": (True, False),
     "motion": ("full", "reduced"),
     "online": (True, False),   # only matters when the server was started with a web source
+    "script": ("simplified", "original"),  # 繁体字: shown in simplified characters, or as printed
 }
 
 
@@ -28,12 +29,21 @@ class Settings:
     def __init__(self, library_root):
         self.path = Path(library_root) / FILE
         self._lock = threading.Lock()
+        self._cached = (None, {})  # (the file's mtime, what it held): a list of memes asks once per meme
 
     def get(self) -> dict:
         try:
-            saved = json.loads(self.path.read_text(encoding="utf-8"))
-        except (FileNotFoundError, json.JSONDecodeError):
-            saved = {}
+            stamp = self.path.stat().st_mtime_ns
+        except OSError:
+            stamp = None
+        if stamp is not None and stamp == self._cached[0]:
+            saved = self._cached[1]
+        else:
+            try:
+                saved = json.loads(self.path.read_text(encoding="utf-8"))
+            except (FileNotFoundError, json.JSONDecodeError):
+                saved = {}
+            self._cached = (stamp, saved)
         # unknown keys and bad values (a hand edit, an older version) fall back to the default
         return {k: saved.get(k) if saved.get(k) in allowed else allowed[0] for k, allowed in CHOICES.items()}
 

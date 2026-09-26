@@ -196,3 +196,16 @@ def test_the_meme_page_can_skip_similar(tmp_path):
     client, _, _, ids = _setup(tmp_path)
     page = client.get(f"/api/meme/{ids['cat.png']}", params={"similar": 0}).json()
     assert page["similar"] == [] and page["liked"] is False
+
+
+def test_traditional_characters_are_shown_simplified_unless_asked_not_to(tmp_path):
+    import json
+
+    client, lib, _, ids = _setup(tmp_path)
+    box = [[0, 0], [200, 0], [200, 40], [0, 40]]
+    (lib.index_dir / "tidy.jsonl").write_text(json.dumps({"id": ids["cat.png"], "value": "- 可以幫我P掉柱子嗎？\n- 如你所願"},
+                                                         ensure_ascii=False), encoding="utf-8")
+    assert client.get("/api/settings").json()["script"] == "simplified"
+    assert client.get(f"/api/meme/{ids['cat.png']}").json()["text"] == "- 可以帮我P掉柱子吗？\n- 如你所愿"
+    client.put("/api/settings", json={"script": "original"})
+    assert client.get(f"/api/meme/{ids['cat.png']}").json()["text"] == "- 可以幫我P掉柱子嗎？\n- 如你所願"

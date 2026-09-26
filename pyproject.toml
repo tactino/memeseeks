@@ -9,7 +9,7 @@ description = "迷因捕手 — find memes by what you mean, across languages."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-dependencies = ["pillow>=10.1", "pillow-heif>=0.16", "numpy>=1.26", "pyyaml>=6"]
+dependencies = ["pillow>=10.1", "pillow-heif>=0.16", "numpy>=1.26", "pyyaml>=6", "opencc-python-reimplemented>=0.1.7"]
 
 [project.optional-dependencies]
 ml = [

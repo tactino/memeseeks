@@ -66,6 +66,7 @@ Kept to what changes the experience; each has a sensible default.
 |---|---|
 | 主题 | 纸色 / 夜间 |
 | 蒙德里安边框 | 开 / 关 |
+| 繁体字 | 转成简体 / 保持原样 (a meme's text as shown; search is not affected) |
 | 开场动画 | 开 / 关 (it plays once per visit, not on every page, and never when opening straight into 刷梗) |
 | 动效 | 完整 / 减少: no cat animations, no slides (the system's reduce-motion setting always wins) |
 | 网上搜索 | 开 / 关 (shown only when the server was started with a web source, which is itself off by default) |

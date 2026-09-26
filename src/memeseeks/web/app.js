@@ -582,6 +582,8 @@ async function settingsPage() {
     h("div.settings", {},
       row("主题", choice("theme", [["paper", "纸色"], ["night", "夜间"]])),
       row("蒙德里安边框", choice("frame", [[true, "开"], [false, "关"]])),
+      row("繁体字", choice("script", [["simplified", "转成简体"], ["original", "保持原样"]]),
+        h("p.hint", { text: "梗图里的繁体字显示成简体；搜索不受影响，简体繁体都能搜到。" })),
       row("开场动画", choice("intro", [[true, "开"], [false, "关"]]), h("p.hint", { text: "每次打开迷因捕手时播放一次。" })),
       row("动效", choice("motion", [["full", "完整"], ["reduced", "减少"]]),
         h("p.hint", { text: "减少：不播放小猫动画和翻页滑动。系统设置了减少动态效果时，总是减少。" })),
