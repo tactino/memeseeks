@@ -35,9 +35,13 @@ similar) and it is what 刷梗 continues with when started from a meme.
 - Header: the logo (home), the search box, 图集, 刷梗, 待确认 (only when something waits, with its count),
   设置. Phones: the search box on top and a bottom bar of 首页 / 图集 / 刷梗 / 设置.
 
-刷梗 order: from a 图集 (or 全部, 我喜欢) its own order, or shuffled; from a meme, the memes similar to it,
-then the rest shuffled; from the header, the memes not seen for longest. Swipe or arrow keys; 喜欢 and 加入
-图集 are one tap away; it remembers where you stopped.
+刷梗 order: from a 图集 (or 全部, 我喜欢; its 刷梗 button) its own order, or shuffled (顺序 / 随机 inside
+刷梗); from a meme (tap its picture), the memes similar to it, then the rest shuffled; from the header, the
+memes not seen for longest. Swipe up and down, the wheel, arrow keys or ↑ ↓; Esc or × closes. 喜欢, 加入图集
+and 详情 are one tap away. A 图集 remembers where you stopped (in this browser; a shuffle keeps its order),
+and starts over once you reached the end. 刷梗 is always dark, whatever the theme.
+
+On the home page, which has its own big logo and search box, the header keeps only its links.
 
 ## Data
 

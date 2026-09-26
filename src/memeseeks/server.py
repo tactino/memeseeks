@@ -206,8 +206,8 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
         return {"removed": service.albums.remove(cid, _ids(await _json_body(request)))}
 
     @app.get("/api/meme/{image_id}")
-    def meme(image_id: str):
-        found = service.meme(image_id)
+    def meme(image_id: str, similar: int = 1):
+        found = service.meme(image_id, similar=bool(similar))
         if found is None:
             raise HTTPException(404, "no such meme")
         return dict(_with_urls([found])[0], similar=_with_urls(found["similar"]))
@@ -291,6 +291,18 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
         path = service.library.root / "custom.css"
         css = path.read_text(encoding="utf-8") if path.is_file() else ""
         return Response(css, media_type="text/css; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
+    @app.get("/api/feed")
+    def feed(album: str | None = None, meme: str | None = None, order: str = Query("new", pattern="^(new|old|shuffle)$"),
+             seed: int = 0):
+        ids = service.feed(album=album, meme=meme, order=order, seed=seed)
+        if ids is None:
+            raise HTTPException(404, "no such meme")
+        return {"ids": ids}
+
+    @app.post("/api/seen")
+    async def seen(request: Request):
+        return {"seen": service.mark_seen(_ids(await _json_body(request)))}
 
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):

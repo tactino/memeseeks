@@ -152,7 +152,7 @@ class LibraryService:
         found = [(i, sc) for i, sc in s.similar(image_id) if i not in hidden][:k]
         return [self._item(s, i, score=sc) for i, sc in found]
 
-    def meme(self, image_id: str) -> dict | None:
+    def meme(self, image_id: str, similar: bool = True) -> dict | None:
         s = self.searcher()
         if image_id not in s.paths or image_id in self._hidden(s):
             return None
@@ -162,7 +162,7 @@ class LibraryService:
         item["albums"] = self.albums.containing(image_id)
         item["liked"] = LIKED in item["albums"]
         item["added"] = self.added_at(image_id, s)
-        item["similar"] = self.similar(image_id)
+        item["similar"] = self.similar(image_id) if similar else []
         return item
 
     # ---------- 图集 ----------
@@ -180,8 +180,7 @@ class LibraryService:
                         "cover": items[-1] if items else None, "created": a["created"]})
         return out
 
-    def album(self, cid: str, sort: str = "new") -> dict:
-        s = self.searcher()
+    def _album_ids(self, s: Searcher, cid: str, sort: str) -> tuple[str, list[str]]:
         shown = set(self.visible(s))
         if cid == "all":
             name = "全部"
@@ -189,9 +188,37 @@ class LibraryService:
         else:
             a = self.albums.get(cid)
             name, ids = a["name"], [it["id"] for it in a["items"] if it["id"] in shown]
-        if sort == "new":
-            ids = ids[::-1]
+        return name, ids[::-1] if sort == "new" else ids
+
+    def album(self, cid: str, sort: str = "new") -> dict:
+        s = self.searcher()
+        name, ids = self._album_ids(s, cid, sort)
         return {"id": cid, "name": name, "count": len(ids), "items": [self._item(s, i) for i in ids]}
+
+    # ---------- 刷梗 ----------
+
+    def feed(self, album: str | None = None, meme: str | None = None, order: str = "new", seed: int = 0) -> list[str] | None:
+        """The order 刷梗 shows memes in (docs/design.md, Pages and navigation); None for an unknown meme.
+        A shuffle is seeded, so the same seed gives the same order and a stopped 刷梗 can resume."""
+        s = self.searcher()
+        rng = random.Random(seed)
+        if meme is not None:  # that meme, the ones similar to it, then the rest shuffled
+            shown = self.visible(s)
+            if meme not in shown:
+                return None
+            hidden = self._hidden(s)
+            near = [i for i, _ in s.similar(meme) if i not in hidden]
+            first = {meme, *near}
+            rest = [i for i in shown if i not in first]
+            rng.shuffle(rest)
+            return [meme, *near, *rest]
+        if album is not None:  # the 图集's own order, or shuffled
+            ids = self._album_ids(s, album, "old" if order == "old" else "new")[1]
+            if order == "shuffle":
+                rng.shuffle(ids)
+            return ids
+        seen = self._read_seen()  # everything: the ones not seen for longest first
+        return sorted(self.visible(s), key=lambda i: (seen.get(i, 0.0), rng.random()))
 
     def remove_memes(self, image_ids: list[str]) -> int:
         """Take memes out of the library. Collected ones move to rejected/; your own files are only hidden."""
@@ -258,19 +285,30 @@ class LibraryService:
                     raise
         return out
 
+    # ---------- seen: when each meme was last shown (旧梗重温, 刷梗) ----------
+
+    def _read_seen(self) -> dict[str, float]:
+        path = self.library.root / "seen.json"
+        try:
+            return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        except json.JSONDecodeError:
+            return {}  # only a display order; start over rather than fail every request
+
+    def mark_seen(self, image_ids: list[str]) -> int:
+        known = [i for i in image_ids if i in self.searcher().paths]
+        with self._seen_lock:  # read-modify-write: two devices at once
+            seen = self._read_seen()
+            seen.update({i: self.clock() for i in known})
+            _atomic_write_text(self.library.root / "seen.json", json.dumps(seen))
+        return len(known)
+
     def rediscover(self, n: int = 12) -> list[dict]:
         s = self.searcher()
-        seen_path = self.library.root / "seen.json"
-        with self._seen_lock:  # read-modify-write: two devices opening the home page at once
-            try:
-                seen = json.loads(seen_path.read_text(encoding="utf-8")) if seen_path.exists() else {}
-            except json.JSONDecodeError:
-                seen = {}  # only a display order; start over rather than fail every request
-            now = self.clock()
+        with self._seen_lock:
+            seen = self._read_seen()
             hidden = self._hidden(s)
-            picked = pick_rediscover([i for i in s.ids if i not in hidden], seen, n, now, self.rng)
-            seen.update({i: now for i in picked})
-            _atomic_write_text(seen_path, json.dumps(seen))
+            picked = pick_rediscover([i for i in s.ids if i not in hidden], seen, n, self.clock(), self.rng)
+        self.mark_seen(picked)
         return [self._item(s, i) for i in picked]
 
     def status(self) -> dict:

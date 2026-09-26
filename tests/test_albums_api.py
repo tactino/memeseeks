@@ -163,3 +163,36 @@ def test_heic_uploads_are_accepted(tmp_path):
     pillow_heif.from_pillow(Image.new("RGB", (16, 16), (10, 200, 30))).save(buf, format="HEIF")
     r = client.post("/api/upload", content=buf.getvalue(), headers={"Content-Type": "image/heic"})
     assert r.status_code == 200 and r.json()["status"] == "added"
+
+
+def test_feed_orders(tmp_path):
+    client, _, _, ids = _setup(tmp_path)
+    everything = set(ids.values())
+    work = client.post("/api/albums", json={"name": "猫"}).json()
+    client.post(f"/api/albums/{work['id']}/add", json={"ids": [ids["cat.png"], ids["dog.png"], ids["cat2.png"]]})
+    feed = lambda **p: client.get("/api/feed", params=p)
+    # a 图集 in the order its page shows, or shuffled; the same seed gives the same order (to resume)
+    assert feed(album=work["id"]).json()["ids"] == [ids["cat2.png"], ids["dog.png"], ids["cat.png"]]
+    assert feed(album=work["id"], order="old").json()["ids"] == [ids["cat.png"], ids["dog.png"], ids["cat2.png"]]
+    shuffled = feed(album=work["id"], order="shuffle", seed=7).json()["ids"]
+    assert set(shuffled) == everything and shuffled == feed(album=work["id"], order="shuffle", seed=7).json()["ids"]
+    assert set(feed(album="all").json()["ids"]) == everything
+    # from a meme: that meme, then the similar ones, then the rest
+    assert feed(meme=ids["cat.png"]).json()["ids"] == [ids["cat.png"], ids["cat2.png"], ids["dog.png"]]
+    # from the header: the ones not seen for longest first
+    assert client.post("/api/seen", json={"ids": [ids["cat.png"], ids["dog.png"], "nope"]}).json() == {"seen": 2}
+    assert feed().json()["ids"][0] == ids["cat2.png"]
+    assert feed(album="nope").status_code == 404 and feed(meme="nope").status_code == 404
+    assert feed(album=work["id"], order="sideways").status_code == 422
+
+
+def test_seen_takes_json_only(tmp_path):
+    client, _, _, ids = _setup(tmp_path)
+    r = client.post("/api/seen", content=f'{{"ids": ["{ids["cat.png"]}"]}}', headers={"Content-Type": "text/plain"})
+    assert r.status_code == 415
+
+
+def test_the_meme_page_can_skip_similar(tmp_path):
+    client, _, _, ids = _setup(tmp_path)
+    page = client.get(f"/api/meme/{ids['cat.png']}", params={"similar": 0}).json()
+    assert page["similar"] == [] and page["liked"] is False

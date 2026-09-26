@@ -405,7 +405,7 @@ async function memePage({ id }) {
     : h("ul.sources", {}, m.sources.map((s) => h("li", {}, `${s.site || "网页"} · `,
       s.page_url ? h("a", { href: s.page_url, target: "_blank", rel: "noopener noreferrer", text: `${s.page_title || "原帖"} ↗` }) : (s.page_title || ""))));
   const out = [h("div.meme", {},
-    h("figure", {}, h("img", { src: m.image, alt: text.slice(0, 120) || "梗图" })),
+    h("figure", {}, h("a", { href: `?view=feed&meme=${m.id}`, title: "全屏，接着刷相似的梗" }, h("img", { src: m.image, alt: text.slice(0, 120) || "梗图" }))),
     h("aside", {},
       h("div.kicker", { text: [pad(m.no), added && `进库于 ${added}`].filter(Boolean).join(" · ") }),
       text ? [h("h3", { text: "图中文字" }), h("blockquote", { text })] : null,
@@ -452,6 +452,9 @@ async function albumPage({ id, sort }) {
         try { await request("DELETE", `/api/albums/${id}`); toast("已删除图集"); go("?view=albums", { replace: true }); } catch (err) { toast(err.message, true); }
       } }));
   }
+  const last = remembered.get(id);  // a shuffled 刷梗 resumes shuffled; otherwise in this page's order
+  const feedOrder = last.at && last.order === "shuffle" ? "shuffle" : sort === "old" ? "old" : "new";
+  if (a.items.length) tools.prepend(h("a.btn.primary", { href: `?${qs({ view: "feed", album: id, order: feedOrder })}`, text: "刷梗" }));
   const head = h("div.album-head", {}, h("div", {}, title, h("div.meta", { text: `${a.count} 张` })), tools);
   if (!a.items.length) {
     const tip = id === "liked" ? ["还没有喜欢的梗图", "在梗图页点「喜欢」，它就会出现在这里。"]
@@ -543,6 +546,204 @@ async function settingsPage() {
       row("连接浏览器", ...connectSteps()))];
 }
 
+// ---------------- 刷梗: full screen, one meme after another (docs/design.md, Pages and navigation) ----------------
+const qs = (params) => new URLSearchParams(Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== "")).toString();
+const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const remembered = {  // where each 图集's 刷梗 stopped: this browser only, a convenience
+  get(album) { try { return JSON.parse(localStorage.getItem(`memeseeks-feed:${album}`)) || {}; } catch (e) { return {}; } },
+  set(album, v) { try { localStorage.setItem(`memeseeks-feed:${album}`, JSON.stringify(v)); } catch (e) { /* storage blocked */ } },
+};
+
+async function feedPage(r) {
+  document.title = "刷梗 · 迷因捕手";
+  const album = r.album || null, meme = r.meme || null;
+  const saved = album ? remembered.get(album) : {};
+  let order = ["new", "old", "shuffle"].includes(r.order) ? r.order : "new";
+  let base = order === "shuffle" ? saved.base || "new" : order;  // what 顺序 means here: the 图集 page's sort
+  let seed = order !== "shuffle" ? 0 : +r.seed || (saved.order === "shuffle" && saved.seed) || Math.floor(Math.random() * 1e9);
+  const load = async () => (await api(`/api/feed?${qs({ album, meme, order, seed: seed || null })}`)).ids;
+  const names = album ? Object.fromEntries((await api("/api/albums")).map((a) => [a.id, a.name])) : {};
+  let ids = await load();
+  const startAt = r.at || saved.at;
+  let i = Math.max(0, ids.indexOf(startAt));
+
+  const cache = new Map();
+  const info = (id) => {
+    if (!cache.has(id)) cache.set(id, api(`/api/meme/${encodeURIComponent(id)}?similar=0`).catch((err) => { cache.delete(id); throw err; }));
+    return cache.get(id);
+  };
+  const stage = h("div.feed-stage");
+  const count = h("span.feed-count");
+  const like = h("button.fbtn", { type: "button" });
+  const addTo = h("button.fbtn", { type: "button", text: "加入图集" });
+  const more = h("a.fbtn", { text: "详情" });
+  const actions = h("div.feed-actions", {}, like, addTo, more);
+  let current = null, busy = false;
+
+  const close = () => {
+    if (history.state && history.state.app) history.back();
+    else go(album ? `?view=album&id=${encodeURIComponent(album)}` : meme ? `?view=meme&id=${encodeURIComponent(meme)}` : "./", { replace: true });
+  };
+  const paint = () => {
+    count.textContent = current ? `${i + 1} / ${ids.length}` : "";
+    actions.hidden = !current;
+    if (!current) return;
+    like.textContent = current.liked ? "已喜欢" : "喜欢";
+    like.classList.toggle("on", current.liked);
+    like.setAttribute("aria-pressed", String(current.liked));
+    more.href = `?view=meme&id=${current.id}`;
+    const here = qs({ view: "feed", album, meme, order: album ? order : null, seed: seed || null, at: current.id });
+    history.replaceState(history.state, "", `?${here}`);
+    if (album) remembered.set(album, { order, base, seed, at: current.id });
+  };
+
+  // seen: 刷梗 from the header shows the memes not seen for longest first
+  let seenQueue = [];
+  const flushSeen = () => {
+    if (!seenQueue.length) return;
+    fetch("/api/seen", { method: "POST", credentials: "same-origin", keepalive: true,
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: seenQueue }) }).catch(() => {});
+    seenQueue = [];
+  };
+
+  // one slide replaces the other: the new one comes from below (next) or above (back)
+  const slideIn = (fig, dir) => {
+    const old = stage.firstElementChild;
+    stage.append(fig);
+    if (!old) return Promise.resolve();
+    if (!dir || reduceMotion()) { old.remove(); return Promise.resolve(); }
+    const opts = { duration: 380, easing: "cubic-bezier(.65, 0, .25, 1)" };
+    old.animate([{ transform: old.style.transform || "none" }, { transform: `translateY(${-dir * 100}%)`, opacity: 0.3 }], opts)
+      .finished.then(() => old.remove());
+    return fig.animate([{ transform: `translateY(${dir * 100}%)` }, { transform: "none" }], opts).finished;
+  };
+  const endCard = (dir) => {
+    current = null;
+    i = ids.length;
+    if (album) remembered.set(album, { order, base, seed, at: null });  // next time from the start
+    const again = ids.length ? h("button.fbtn", { type: "button", text: "从头再刷", onclick: () => show(0, 1) }) : null;
+    slideIn(h("div.slide.end", {}, Cat.make({ closed: 1, bubble: 0 }),
+      h("h2", { text: ids.length ? "刷完了" : "这里还没有梗" }),
+      h("p", { text: ids.length ? `这里的 ${ids.length} 张都看过了。` : "先往这里放几张梗图吧。" }),
+      h("div.blank-actions", {}, again, h("button.fbtn", { type: "button", text: "返回", onclick: close }))), dir);
+    paint();
+  };
+  async function show(k, dir) {
+    if (busy || k < 0) return false;
+    if (k >= ids.length) {
+      const moved = Boolean(current);
+      if (moved || !stage.firstChild) endCard(dir);
+      return moved;
+    }
+    busy = true;
+    let m;
+    try { m = await info(ids[k]); } catch (err) {
+      busy = false;
+      if (err.status === 404) { ids.splice(k, 1); return show(k, dir); }  // removed meanwhile
+      toast(err.message, true);
+      return false;
+    }
+    try {
+      const img = h("img", { src: m.image, alt: (m.text || "").slice(0, 120) || "梗图", draggable: "false" });
+      await Promise.race([img.decode().catch(() => {}), new Promise((res) => setTimeout(res, 600))]);
+      await slideIn(h("figure.slide", {}, img), dir);
+      i = k;
+      current = m;
+      seenQueue.push(m.id);
+      if (seenQueue.length >= 5) flushSeen();
+      paint();
+      ids.slice(k + 1, k + 3).forEach((id) => info(id).then((n) => { new Image().src = n.image; }).catch(() => {}));
+      return true;
+    } finally { busy = false; }
+  }
+  const step = (dir) => show(i + dir, dir);
+
+  like.addEventListener("click", async () => {
+    const m = current;
+    try {
+      await request("POST", `/api/albums/liked/${m.liked ? "remove" : "add"}`, { ids: [m.id] });
+      m.liked = !m.liked;
+      m.albums = m.liked ? [...m.albums, "liked"] : m.albums.filter((a) => a !== "liked");
+      paint();
+    } catch (err) { toast(err.message, true); }
+  });
+  addTo.addEventListener("click", () => openPicker(current, paint));
+
+  // swipe (touch), wheel, keys, and two buttons for a mouse
+  let y0 = null, dy = 0, t0 = 0;
+  stage.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1 || busy) { y0 = null; return; }
+    y0 = e.touches[0].clientY; dy = 0; t0 = performance.now();
+  }, { passive: true });
+  stage.addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    e.preventDefault();
+    dy = e.touches[0].clientY - y0;
+    const edge = (dy > 0 && i === 0) || (dy < 0 && i >= ids.length);
+    const cur = stage.lastElementChild;
+    if (cur) cur.style.transform = `translateY(${edge ? dy * 0.3 : dy}px)`;
+  }, { passive: false });
+  stage.addEventListener("touchend", async () => {
+    if (y0 === null) return;
+    y0 = null;
+    const cur = stage.lastElementChild;
+    const flick = Math.abs(dy) / Math.max(1, performance.now() - t0) > 0.5 && Math.abs(dy) > 30;
+    if ((Math.abs(dy) > 90 || flick) && await step(dy < 0 ? 1 : -1)) return;
+    if (cur && cur.isConnected && cur.style.transform) {
+      cur.animate([{ transform: cur.style.transform }, { transform: "none" }], { duration: 200, easing: "cubic-bezier(.2, .8, .2, 1)" });
+      cur.style.transform = "";
+    }
+  });
+  let lastWheel = 0;
+  stage.addEventListener("wheel", (e) => {  // one move per gesture: a trackpad's glide is a stream of events
+    e.preventDefault();
+    const now = performance.now(), fresh = now - lastWheel > 250;
+    lastWheel = now;
+    if (fresh && Math.abs(e.deltaY) >= 4) step(e.deltaY > 0 ? 1 : -1);
+  }, { passive: false });
+  const onKey = (e) => {
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || $("#picker").open || e.target.closest("input, textarea")) return;
+    if (e.key === " " && e.target.closest("button, a")) return;  // space presses the focused button
+    if (["ArrowDown", "ArrowRight", "PageDown", " ", "j"].includes(e.key)) { e.preventDefault(); step(1); }
+    else if (["ArrowUp", "ArrowLeft", "PageUp", "k"].includes(e.key)) { e.preventDefault(); step(-1); }
+    else if (e.key === "Escape") close();
+    else if (e.key === "l" && current) like.click();
+  };
+  document.addEventListener("keydown", onKey);
+  addEventListener("pagehide", flushSeen);
+
+  // 顺序 / 随机, for a 图集
+  let orderSeg = null;
+  if (album) {
+    const pick = async (next) => {
+      if (next === order || busy) return;
+      const keep = current && current.id;
+      order = next;
+      seed = order === "shuffle" ? Math.floor(Math.random() * 1e9) : 0;
+      try { ids = await load(); } catch (err) { toast(err.message, true); return; }
+      [...orderSeg.children].forEach((b, n) => b.setAttribute("aria-pressed", String((n === 1) === (order === "shuffle"))));
+      if (order === "shuffle") { show(0, 1); return; }  // a new random order, from its start
+      i = Math.max(0, ids.indexOf(keep));  // back in order: stay on this meme
+      paint();
+    };
+    orderSeg = h("span.seg", { role: "group", "aria-label": "顺序" },
+      h("button", { type: "button", text: "顺序", "aria-pressed": String(order !== "shuffle"), onclick: () => pick(base) }),
+      h("button", { type: "button", text: "随机", "aria-pressed": String(order === "shuffle"), onclick: () => pick("shuffle") }));
+  }
+
+  const title = album ? names[album] || "图集" : meme ? "从这一张刷起" : "全部";
+  const feed = h("section.feed", { "aria-label": "刷梗" },
+    h("div.feed-top", {}, h("button.x", { type: "button", "aria-label": "关闭", text: "×", onclick: close }),
+      h("span.feed-title", { text: title }), orderSeg, count),
+    stage, actions,
+    h("div.feed-nav", {},
+      h("button", { type: "button", "aria-label": "上一张", text: "↑", onclick: () => step(-1) }),
+      h("button", { type: "button", "aria-label": "下一张", text: "↓", onclick: () => step(1) })));
+  feed._leave = () => { flushSeen(); document.removeEventListener("keydown", onKey); removeEventListener("pagehide", flushSeen); };
+  if (ids.length) show(i, 0); else endCard(0);
+  return feed;
+}
+
 // ---------------- 加入图集 ----------------
 async function openPicker(m, onChange) {
   const dlg = $("#picker"), list = $("#picker-list"), form = $("#picker-new");
@@ -579,26 +780,27 @@ document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListen
 document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
 
 // ---------------- moving between pages ----------------
-const PAGES = { home: homePage, search: searchPage, meme: memePage, albums: albumsPage, album: albumPage, review: reviewPage, settings: settingsPage };
+const PAGES = { home: homePage, search: searchPage, meme: memePage, albums: albumsPage, album: albumPage, review: reviewPage, settings: settingsPage, feed: feedPage };
 
 function route() {
   const p = new URLSearchParams(location.search);
   const q = (p.get("q") || "").trim();
-  return { view: p.get("view") || (q ? "search" : "home"), id: p.get("id"), q, sort: p.get("sort") || "new" };
+  return { ...Object.fromEntries(p), view: p.get("view") || (q ? "search" : "home"), q, sort: p.get("sort") || "new" };
 }
 
 function go(url, { replace = false } = {}) {
-  history[replace ? "replaceState" : "pushState"](null, "", url);
+  history[replace ? "replaceState" : "pushState"]({ app: 1 }, "", url);  // app: going back stays in the app
   render();
 }
 
 let renderToken = 0;
+let leavePage = null;  // a page can clean up (listeners) before the next one replaces it: node._leave
 async function render() {
   const r = route();
   const token = ++renderToken;
   document.body.dataset.view = r.view;
   document.title = "迷因捕手";
-  const tab = { album: "albums", albums: "albums", home: "home", review: "review", settings: "settings" }[r.view] || "";
+  const tab = { album: "albums", albums: "albums", home: "home", review: "review", settings: "settings", feed: "feed" }[r.view] || "";
   uploadTarget = null;
   document.querySelectorAll("[data-tab]").forEach((a) => (a.dataset.tab === tab ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   $("#bar-q").value = r.view === "search" ? r.q : "";
@@ -608,7 +810,10 @@ async function render() {
   } catch (err) {
     nodes = err.status === 409 ? emptyLibrary() : h("p.notice.error", { text: err.message });
   }
-  if (token !== renderToken) return;  // a newer navigation won
+  const leave = [].concat(nodes).map((n) => n && n._leave).find(Boolean) || null;
+  if (token !== renderToken) { if (leave) leave(); return; }  // a newer navigation won
+  if (leavePage) leavePage();
+  leavePage = leave;
   view.replaceChildren(...[].concat(nodes));
   window.scrollTo(0, 0);
   refreshReviewCount();
