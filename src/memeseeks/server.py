@@ -22,6 +22,7 @@ from .settings import SettingsError
 
 WEB = Path(__file__).parent / "web"
 USERSCRIPT = Path(__file__).parent / "browser" / "memeseeks.user.js"
+POPCAT = WEB / "popcat.js"
 TOKEN_COOKIE = "memeseeks_token"
 INBOX_KEY_HEADER = "x-memeseeks-key"
 MAX_INBOX_BODY = MAX_IMAGE_BYTES * 4 // 3 + 64 * 1024  # base64 image plus a little metadata
@@ -75,7 +76,7 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
         async def _require_token(request: Request, call_next):
             # The page and its static files hold no data; every /api/* route (images included) does.
             # The inbox checks its own key (the browser script has that, not the token).
-            if (request.url.path.startswith("/api/") and request.url.path != "/api/inbox"
+            if (request.url.path.startswith("/api/") and request.url.path not in ("/api/inbox", "/api/inbox/albums")
                     and not _authorized(request)):
                 return JSONResponse({"error": "token required: open the link printed by `memeseeks serve`"},
                                     status_code=401)
@@ -116,13 +117,25 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
             script = USERSCRIPT.read_text(encoding="utf-8")
             script = script.replace('"__MEMESEEKS_SERVER__"', json.dumps(server))
             script = script.replace('"__MEMESEEKS_KEY__"', json.dumps(inbox.key()))
+            script = script.replace('"__MEMESEEKS_POPCAT__"', POPCAT.read_text(encoding="utf-8")
+                                    .split("window.POPCAT = ", 1)[1].rstrip().rstrip(";"))  # the cat's shapes
             return Response(script, media_type="text/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+
+        def _has_key(request: Request) -> bool:
+            # Only the browser script knows this key. Ordinary web pages can't send a custom header
+            # to this server at all (the CORS preflight fails), so they can't slip memes in.
+            return hmac.compare_digest(request.headers.get(INBOX_KEY_HEADER, "").encode(), inbox.key().encode())
+
+        @app.get("/api/inbox/albums")
+        def inbox_albums(request: Request):
+            # where the collector can put what it collects: 我喜欢 and your 图集 (names only)
+            if not _has_key(request):
+                return JSONResponse({"error": "wrong or missing inbox key: reinstall the browser script"}, status_code=401)
+            return [{"id": a["id"], "name": a["name"]} for a in service.albums.all()]
 
         @app.post("/api/inbox")
         async def receive(request: Request):
-            # Only the browser script knows this key. Ordinary web pages can't send a custom header
-            # to this server at all (the CORS preflight fails), so they can't slip memes in.
-            if not hmac.compare_digest(request.headers.get(INBOX_KEY_HEADER, "").encode(), inbox.key().encode()):
+            if not _has_key(request):
                 return JSONResponse({"error": "wrong or missing inbox key: reinstall the browser script"},
                                     status_code=401)
             if int(request.headers.get("content-length") or 0) > MAX_INBOX_BODY:
@@ -130,7 +143,14 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
             try:
                 body = json.loads(await request.body())
                 data = base64.b64decode(body.get("image", ""), validate=True)
+                album = body.get("album")
+                if album is not None:
+                    if not isinstance(album, str):
+                        raise TypeError("album must be a string")
+                    service.albums.get(album)  # 404 before storing anything
                 result = inbox.receive(data, body)
+                if album is not None:
+                    service.albums.add(album, [result["id"]])
             except (json.JSONDecodeError, binascii.Error, AttributeError, TypeError) as exc:
                 return JSONResponse({"error": f"bad request: {exc}"}, status_code=400)
             except InboxError as exc:

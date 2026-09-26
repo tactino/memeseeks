@@ -83,3 +83,20 @@ def test_inbox_is_absent_when_not_configured(tmp_path):
     client = TestClient(create_app(LibraryService(lib, models)), base_url="http://127.0.0.1")
     assert client.post("/api/inbox", json=BODY, headers={"X-Memeseeks-Key": "x"}).status_code in (404, 405)
     assert "indexing" not in client.get("/api/status").json()
+
+
+def test_the_browser_script_can_list_albums_and_collect_into_one(tmp_path):
+    client, inbox, _, _ = _setup(tmp_path, token="a-long-enough-token-123")
+    key = {"X-Memeseeks-Key": inbox.key()}
+    assert client.get("/api/inbox/albums").status_code == 401                     # the key, not the token
+    assert client.get("/api/inbox/albums", headers={"X-Memeseeks-Key": "wrong"}).status_code == 401
+    work = client.post("/api/albums", json={"name": "上班"}, params={"token": "a-long-enough-token-123"}).json()
+    listed = client.get("/api/inbox/albums", headers=key).json()
+    assert listed == [{"id": "liked", "name": "我喜欢"}, {"id": work["id"], "name": "上班"}]
+    r = client.post("/api/inbox", json={**BODY, "album": work["id"]}, headers=key)
+    assert r.status_code == 200
+    # in the 图集 already; it shows there once indexed (and, with little text, once kept in 待确认)
+    assert r.json()["id"] in (inbox.library.root / "collections.json").read_text(encoding="utf-8")
+    before = sorted(p.name for p in inbox.folder.iterdir())
+    bad = client.post("/api/inbox", json={**BODY, "image": _png((1, 2, 3)), "album": "nope"}, headers=key)
+    assert bad.status_code == 404 and sorted(p.name for p in inbox.folder.iterdir()) == before  # nothing stored

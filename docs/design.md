@@ -168,9 +168,11 @@ The nose rises and shrinks as the mouth opens and disappears at half its size (n
 It runs on other people's sites, so it stays small and isolated: a shadow root, system fonts only, short
 animations. The button is the cat on a paper tile with a hard shadow; it can be dragged anywhere and
 remembers its place per site (menu: 猫头回到右下角). The panel opens towards the middle of the screen. While
-collecting, each ticked thumbnail flies into the cat's mouth and the cat gulps once per meme; it never
-lags behind the last one. Done: it spits the bubble out. Failed: the mouth stays shut and a red block says
-why.
+collecting, each thumbnail flies into the cat's mouth as it arrives and the cat gulps once per meme; it
+never lags behind the last one. Done: it spits the bubble out. Failed: the mouth stays shut and a red block
+says why (the server not running stops the batch at once); closing the panel opens it again. 放进 picks
+the 图集 the memes go into (or only the library); the script remembers the choice. The cat's shapes come
+from `web/popcat.js`, filled into the script when the server hands it out.
 
 ## Regenerating assets
 

@@ -60,3 +60,11 @@ def test_page_reading_rules():
     assert got["relative"] == "https://tieba.baidu.com/img/a.png" and got["js"] is None
     assert (got["big"], got["icon"], got["banner"]) == (True, False, False)
     assert got["sites"] == ["tieba", "xiaohongshu", "douban", "generic", "generic"]
+
+
+def test_served_script_carries_the_cat(tmp_path):
+    client, _, _, _ = _setup(tmp_path)
+    text = client.get("/api/inbox/memeseeks.user.js").text
+    popcat = (SCRIPT.parents[1] / "web" / "popcat.js").read_text(encoding="utf-8")
+    shapes = json.loads(popcat.split("window.POPCAT = ", 1)[1].rstrip().rstrip(";"))
+    assert json.dumps(shapes["vb"]) in text and shapes["body"][:40] in text
