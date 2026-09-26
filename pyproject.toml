@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memeseeks"
-version = "0.2.0"
+version = "0.3.0"
 description = "迷因捕手 — find memes by what you mean, across languages."
 readme = "README.md"
 license = {text = "MIT"}

@@ -1,139 +1,142 @@
 # 迷因捕手 · memeseeks
 
-Describe what you remember about a meme, get it back from your own collection. Works across Chinese and English, runs on your machine; searching the web as well is optional and off by default.
+[English](README.en.md)
 
-**Status:** v0.2 — command line, a local web app and a Docker image. A cross-language meme graph and re-making translated memes are on the roadmap.
+说出你记得的那句话，从自己的收藏里把那张梗图找回来。中英文都能搜，程序跑在你自己的电脑上；同时搜网上是可选的，默认关闭。
 
-## How it finds memes
+它也是一个个人梗图收藏夹，有点像网易云音乐之于歌：**图集**（像歌单）、**我喜欢**、全屏一张接一张地**刷梗**，还能在逛贴吧、小红书、豆瓣时一键**采集**。
 
-Every image is read in up to three ways and the results are fused (reciprocal rank fusion):
+**状态：** v0.3。本地网页应用、命令行、一键安装和 Docker 镜像都已可用。跨语言的「梗图关系图」和梗图译制在规划中。
 
-| Route | What it uses | Needs a GPU? |
-|---|---|---|
-| OCR text | text printed on the meme ([RapidOCR](https://github.com/RapidAI/RapidOCR)), matched by meaning with [BGE-M3](https://huggingface.co/BAAI/bge-m3) | no |
-| Picture | [Chinese-CLIP](https://github.com/OFA-Sys/Chinese-CLIP) image–text similarity | no |
-| Description (optional) | a local vision-language model ([Qwen2.5-VL-7B](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)) writes topic / punchline | yes, ~16 GB VRAM |
+## 安装
 
-On the maintainer's text-heavy collection the first two routes already find every query in the top 5, so the description route is off by default (numbers in `experiments/results/`).
-
-## Install
-
-**Windows** — open PowerShell and run:
+**Windows**：打开 PowerShell，运行：
 
 ```powershell
 irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1 | iex
 ```
 
-**macOS / Linux:**
+**macOS / Linux：**
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.sh | sh
 ```
 
-It installs into one folder with its own Python (Windows `%LOCALAPPDATA%\memeseeks`, macOS `~/Library/Application Support/memeseeks`, Linux `~/.local/share/memeseeks`), adds a 迷因捕手 shortcut and starts it. The first start downloads about 3.9 GB of models; the web app shows the progress. From China it switches to mirrors by itself (PyPI, Python and the models). Nothing is added to PATH; to uninstall, delete that folder and the shortcut — your library, in `~/.memeseeks`, stays. Run the same line again to update.
+安装脚本会把程序和它自带的 Python 放进一个文件夹（Windows 是 `%LOCALAPPDATA%\memeseeks`，macOS 是 `~/Library/Application Support/memeseeks`，Linux 是 `~/.local/share/memeseeks`），建好「迷因捕手」快捷方式，然后启动。
 
-To keep everything off drive C: (or install elsewhere), on Windows:
+- 第一次启动会下载约 3.9 GB 的模型，网页上能看到进度；下完就能搜索，其他功能马上就能用。
+- 在国内会自动换用镜像（PyPI、Python 和模型都走国内镜像）。
+- 不改系统 PATH。想卸载，删掉那个文件夹和快捷方式即可；你的图库默认在 `~/.memeseeks`，不会被删。
+- 想更新，再运行一次同一行命令。
+
+**不想装在 C 盘**（或者想装到别处）时，在 Windows 上这样运行：
 
 ```powershell
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1))) -Dir D:\memeseeks -Library D:\memeseeks-library
 ```
 
-`-Dir` is the program, its Python and the models; `-Library` is your library (index, 图集, collected images); `-Models D:\some\hf-cache` reuses a Hugging Face cache you already have instead of downloading the models again. On macOS / Linux the same are `MEMESEEKS_DIR`, `MEMESEEKS_LIBRARY` and `MEMESEEKS_MODELS` in front of `sh`.
+- `-Dir`：程序、它的 Python 和模型放在哪。
+- `-Library`：你的图库（索引、图集、采集来的图）放在哪。
+- `-Models D:\某处\hf-cache`：复用你已经下载过的 Hugging Face 模型缓存，不再重新下载。
 
-### By hand
+macOS / Linux 上对应的是在 `sh` 前面加 `MEMESEEKS_DIR=…`、`MEMESEEKS_LIBRARY=…`、`MEMESEEKS_MODELS=…`。
 
-Python 3.10 or newer.
+## 怎么用
 
-```bash
-git clone https://github.com/tactino/memeseeks && cd memeseeks
-python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu   # or the CUDA build for your GPU
-pip install -e ".[ml,serve]"
-```
+打开后先把梗图放进来。可以在任意图集页点「上传」，也可以直接把图片拖进页面；还可以在「设置 → 来源文件夹」里添加电脑上已有的梗图文件夹。放进来的新图会在后台建立索引，页头会显示进度。在笔记本 CPU 上每张大约 3.5 秒，1000 张大约一小时，以后只处理新增的图。
 
-The first run downloads about 3.9 GB of models into the Hugging Face cache (`HF_HOME`); the web app is up at once and shows the progress, and search works as soon as the download is done. **From China**, set `HF_ENDPOINT=https://hf-mirror.com` before starting. Indexing on a laptop CPU takes about 3.5 s per image (roughly an hour per 1,000 memes); only new images are processed on later runs.
+- **搜索**：输入你记得的话，比如「上班的时候想下班」。把握大的结果排在前面，其余的折叠在「可能相关」里。
+- **图集**：有「全部」「我喜欢」和你自己建的图集。在梗图页点「加入图集」；在任意图集页点「上传」，或者把图片拖进页面。
+- **刷梗**：全屏一张接一张地看。可以按图集的顺序看，或者随机；在某张梗图上点大图，会接着刷和它相似的梗；从页头进入时，先刷最久没看过的。手机上划动，电脑上用滚轮或方向键。
+- **首页**有今日一梗、你的图集和旧梗重温。点开一张梗图可以复制、保存、分享，也能看它的出处。
+- **设置**：纸色 / 夜间主题、蒙德里安边框、开场动画、减少动效、网上搜索、来源文件夹、连接浏览器。设置存在图库里，用手机打开也一样。想改得更深，可以在图库文件夹里放一个 `custom.css`。
 
-**Windows + Anaconda:** don't build the venv from Anaconda's Python if you use torch ≥ 2.9 — Anaconda ships an older MSVC runtime next to `python.exe` and torch fails with `WinError 1114 … c10.dll`. Use a python.org or `uv`-managed Python instead (`uv venv --managed-python --python 3.12`).
+在运行它的电脑上，还可以从浏览器菜单把它装成一个应用。
 
-## Run with Docker
+### 在手机上用
 
-No Python setup needed; CPU only.
-
-```bash
-git clone https://github.com/tactino/memeseeks && cd memeseeks
-cp .env.example .env        # then set MEMES_DIR and a token (the file shows how to generate one)
-docker compose up -d
-docker compose logs -f      # wait for "memeseeks is at http://…"
-```
-
-- The first start downloads about 4 GB of models into the `models` volume and indexes your folder (≈ 3.5 s per image on a laptop CPU). **Nothing listens on port 8765 until indexing has finished** — follow the logs.
-- Then open `http://<this machine's LAN address>:8765/?token=<your token>` once on each device; the browser remembers it.
-- Later starts only index new images. After updating the code run `docker compose up -d --build`; `docker compose down -v` deletes the library and the downloaded models.
-- The meme folder is mounted read-only. The container runs as uid 1000, so if you replace the `library` volume with a bind mount, make that folder writable by uid 1000.
-
-## Use
+目前需要手动开启。在电脑上运行下面这行（安装版的话就用它的启动文件，比如 `D:\memeseeks\memeseeks.cmd`，后面跟同样的参数）：
 
 ```bash
-memeseeks add ~/Pictures/memes            # index a folder; re-run any time, only new images are processed
-memeseeks serve                           # web app at http://127.0.0.1:8765/
-memeseeks serve --open                    # ... and open it in the browser (or just open it if it already runs)
-memeseeks search "关于熬夜的"              # or search from the terminal
-memeseeks status                          # what is in the library, and any images that failed a step
+memeseeks serve --host 0.0.0.0 --token <一串足够长的口令>
 ```
 
-More:
+然后在手机浏览器打开它打印出来的链接，把 `127.0.0.1` 换成电脑的局域网地址。
+
+用普通 http 打开时，手机能搜索和「保存」；「复制」「分享」和装成应用需要 localhost 或 HTTPS，这是浏览器的规定。
+
+### 从社区采集梗图
+
+浏览器脚本会在你看的网页上放一只猫。点它，它会列出这一页的图；你勾选的图会连同网站名、帖子链接和标题一起进你的图库，大约一分钟后就能搜到。
+
+脚本对三个站点做了专门适配：百度贴吧（每层楼的原图）、小红书（一篇笔记的全部图片）、豆瓣小组（帖子和回复里的大图）。其他网站用通用模式。
+
+1. 给浏览器装扩展 [Violentmonkey](https://violentmonkey.github.io/)（Firefox 或 Chrome 都行）。
+2. 在迷因捕手运行时打开网页，进入「设置 → 连接浏览器 → 安装采集 meme 脚本」。脚本是为你的服务器生成的，带着只有你的图库知道的密钥；没有这把密钥，收件箱不收图。
+3. 在任意网页上点那只猫（可以把它拖到你喜欢的位置），勾选图片，在「放进」里选图集，然后点「采集」。
+
+字很少（少于 15 个字）的采集图多半是表情包，会先放进页头的「待确认」。点「要」就放进图库；点「不要」会移到 `<图库>/rejected`，不删除，也能一键撤销。你的选择只存在你自己的电脑上，以后用来训练一个只属于你的判别器。你自己文件夹里的图不受这条规则影响。
+
+脚本只在你点它时动作，只采你正在看的这一页，每秒最多下载两张图。它不自动翻页，不在后台抓取，除了图片、网站名、帖子链接、帖子标题和你选的图集，什么也不发送。你可以在 Violentmonkey 的菜单里让它在某个网站上隐藏，或者把猫放回右下角。
+
+### 网上搜索（可选）
+
+你自己的图和网上的图分开显示。网上搜索默认关闭。要打开，先去申请一个免费的 [KLIPY](https://partner.klipy.com) API key，然后运行：
 
 ```bash
-memeseeks add ~/Pictures/memes --vlm      # also describe images with the local VLM (GPU); --no-vlm turns it off
-memeseeks add ~/Pictures/memes --retry-failed   # redo images that failed a step last time
-memeseeks search "cat judging you" -k 5 --json
-memeseeks eval queries.csv                # score your own queries (see below)
-memeseeks --lib D:\memes-lib status       # global options such as --lib go before the command
+MEMESEEKS_KLIPY_KEY=<你的 key> memeseeks serve --online klipy     # 或者设置环境变量 MEMESEEKS_ONLINE=klipy
 ```
 
-The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOME`). Nothing leaves your machine unless you turn on online search.
+打开之后：
 
-### The web app
+- 是**浏览器**把你的搜索词发给 KLIPY，同时发送一个每个图库随机生成的 id 和你的 IP 地址；图片也直接从 KLIPY 加载。迷因捕手的服务器不转发、也不保存这些内容。
+- KLIPY 的结果按原样显示，可能包含广告。它的条款不允许过滤或重排结果，内容偏好请在 KLIPY 的合作方后台里调整。
+- 能打开你网页的人都能看到这个 key。
+- KLIPY 的英文和日文内容很多，中文很少。
 
-It is a personal meme collection, a little like a music app is for songs:
+## 你的数据在哪、怎么备份
 
-- **Search** by what you remember; confident matches first, the rest folded under 可能相关.
-- **图集** (like playlists): 全部, 我喜欢 and your own. Add a meme from its page with 加入图集; 上传 on any 图集 page, or drop images anywhere on the page.
-- **刷梗**: full screen, one meme after another — a 图集 in order or shuffled, the memes similar to the one you tapped, or (from the header) the ones you have not seen for longest. Swipe, scroll or use the arrow keys.
-- The home page has 今日一梗, your 图集 and 旧梗重温. Tap a meme for 复制 / 保存 / 分享 and its source.
-- **设置**: 纸色 / 夜间, the Mondrian frame, the entrance animation, less motion, web search, your folders and connecting the browser. Settings live in the library, so every device sees them; a `custom.css` in the library folder is loaded after the app's styles.
+图库文件夹（默认 `~/.memeseeks`，可以用 `-Library`、`--lib` 或 `MEMESEEKS_HOME` 指定）里全是普通文件：
 
-On the computer running it (`localhost`) it also installs as an app from the browser menu.
+| 内容 | 位置 |
+|---|---|
+| 图集、我喜欢 | `collections.json` |
+| 设置、编号、看过的记录 | `settings.json`、`numbers.json`、`seen.json` |
+| 采集和上传的图，以及它们的出处 | `inbox/`、`provenance.jsonl` |
+| 待确认的选择；「不要」的图 | `review.jsonl`、`rejected/` |
+| 索引（可以重建） | `index/` |
 
-**New memes are picked up by themselves.** While `serve` runs, images you add to any library folder are indexed in the background and become searchable within about a minute (`--no-watch` turns this off). On Windows the indexing runs at below-normal priority, so the rest of the computer stays responsive. The library also has an inbox folder, `<library>/inbox`, for memes that don't belong to one of your folders.
+- **你自己文件夹里的图，迷因捕手只读不改。** 「移出图库」对它们也只是隐藏，原图不会动。
+- **备份就是复制整个图库文件夹。** 索引丢了能重建，图集和我喜欢丢了就没了，所以这才是需要备份的东西。
+- **换电脑**：把图库文件夹复制过去，安装时用 `-Library` 指向它。如果你自己的梗图文件夹换了位置，在「设置 → 来源文件夹」里重新添加一次；图集是按图片内容认图的，不会丢。
 
-**From your phone:** run `memeseeks serve --host 0.0.0.0 --token <something secret>` and open the printed link with your computer's LAN address. Over plain `http` the phone can search and **save**; **copy** and **share** (and installing as an app) need `localhost` or HTTPS, because browsers only allow them in a secure context.
+## 它是怎么找到梗图的
 
-### Collecting memes from community pages
+每张图最多从三个方面读，结果再合并排序（倒数排名融合）：
 
-A userscript adds a 采集 meme button to the pages you read. Click it and it lists the images on that page; the ones you tick go into your library's inbox, together with the site, the page link and its title, and are searchable within about a minute. It has special handling for 百度贴吧 (original-size images from every floor on the page), 小红书 (all images of a note) and 豆瓣小组 (large versions of topic and reply images), and a generic mode for any other site.
+| 途径 | 用什么 | 要显卡吗 |
+|---|---|---|
+| 图里的字 | 先识别图中文字（[RapidOCR](https://github.com/RapidAI/RapidOCR)），再用 [BGE-M3](https://huggingface.co/BAAI/bge-m3) 按意思匹配 | 不用 |
+| 画面 | [Chinese-CLIP](https://github.com/OFA-Sys/Chinese-CLIP) 图文相似度 | 不用 |
+| 描述（可选） | 本地视觉语言模型（[Qwen2.5-VL-7B](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)）写出主题和笑点 | 要，约 16 GB 显存 |
 
-1. Install [Violentmonkey](https://violentmonkey.github.io/) (Firefox or Chrome).
-2. With `memeseeks serve` running, open the web app's 设置 → 连接浏览器 → 安装采集 meme 脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
-3. On any page, click the cat (drag it wherever you like), tick the images, pick where they go under 放进, and 采集.
+在维护者那批字很多的梗图上，前两个途径已经能把每条查询要找的图排进前五，所以「描述」默认关闭。数字见 `experiments/results/`。
 
-Collected images with little text (fewer than 15 characters) are probably 表情包, so they wait under 「待确认」 in the header until you choose 要 (into the library) or 不要 (moved to `<library>/rejected`, not deleted; undo is one click). Your decisions are kept on your machine to train a personal classifier later. Images in your own folders are never held back.
-
-It only acts when you click, only on the page you are looking at, and downloads at most two images a second. It never turns pages or collects in the background, and it sends nothing besides the image, the site name, the page link, the page title and the 图集 you picked. You can hide the button on a site, or put the cat back in its corner, from the Violentmonkey menu.
-
-### Online search (optional)
-
-Results from your own library and from the web are shown in separate sections. Web search is off by default. To turn it on, get a free [KLIPY](https://partner.klipy.com) API key and run:
+## 命令行
 
 ```bash
-MEMESEEKS_KLIPY_KEY=<your key> memeseeks serve --online klipy     # or set MEMESEEKS_ONLINE=klipy
+memeseeks add ~/Pictures/memes            # 为一个文件夹建立索引；随时可以重跑，只处理新图
+memeseeks serve                           # 网页在 http://127.0.0.1:8765/
+memeseeks serve --open                    # 同上，并打开浏览器（已经在运行的话就直接打开）
+memeseeks search "关于熬夜的"              # 在终端里搜
+memeseeks status                          # 图库里有什么，以及哪些图某一步失败了
+memeseeks eval queries.csv                # 给你自己的查询打分（见下）
+memeseeks --lib D:\memes-lib status       # --lib 这类全局选项写在子命令前面
 ```
 
-When it is on, **the browser** sends your search words to KLIPY, together with a random per-library id and your IP address, and loads the images directly from KLIPY. The memeseeks server never relays or stores them. KLIPY's results are shown exactly as returned, possibly including ads; its terms don't allow filtering or reordering, so adjust content settings in the KLIPY Partner Panel. The key is visible to anyone who can open your web app. KLIPY covers English and Japanese well and Chinese only thinly.
+`add --vlm` 会另外用本地视觉语言模型给图写描述（需要显卡），`--retry-failed` 会重做上次失败的图。
 
-### Scoring your own queries
-
-`queries.csv` has a header row, then one query per row with the file name(s) it should find, separated by `;`:
+**评测你自己的查询**：`queries.csv` 第一行是表头，之后每行一条查询和它应该找到的文件名，多个文件名用 `;` 分隔。文件名可以是相对于添加的文件夹的路径，也可以是不重名的文件名。
 
 ```csv
 query,expected
@@ -141,8 +144,36 @@ query,expected
 猫在评判你,cat_judge.png;cat_judge_2.png
 ```
 
-File names may be paths relative to the added folder or unique base names.
+## 手动安装（开发用）
 
-## License
+需要 Python 3.10 或更新版本。
 
-Code: MIT. The meme knowledge base (when it exists): CC BY-SA 4.0.
+```bash
+git clone https://github.com/tactino/memeseeks && cd memeseeks
+python -m venv .venv && source .venv/bin/activate        # Windows：.venv\Scripts\activate
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu   # 有显卡就装对应的 CUDA 版
+pip install -e ".[ml,serve]"
+```
+
+- 第一次运行会把约 3.9 GB 的模型下载到 Hugging Face 缓存（`HF_HOME`）。**在国内**请先设置 `HF_ENDPOINT=https://hf-mirror.com`。
+- **Windows + Anaconda**：如果用 torch 2.9 或更新版本，不要用 Anaconda 的 Python 建虚拟环境，否则 torch 会报 `WinError 1114 … c10.dll`。原因是 Anaconda 在 `python.exe` 旁边放了一份旧的 MSVC 运行库。改用 python.org 的 Python，或者 uv 管理的 Python（`uv venv --managed-python --python 3.12`）。
+
+## 用 Docker 运行
+
+不用装 Python，只用 CPU。
+
+```bash
+git clone https://github.com/tactino/memeseeks && cd memeseeks
+cp .env.example .env        # 然后填好 MEMES_DIR 和口令（文件里写了怎么生成）
+docker compose up -d
+docker compose logs -f      # 等到出现 "memeseeks is at http://…"
+```
+
+- 第一次启动会把约 3.9 GB 的模型下载到 `models` 卷，并为你的文件夹建立索引。**建完索引之前 8765 端口不会响应**，请看日志。
+- 之后在每台设备上打开一次 `http://<这台电脑的局域网地址>:8765/?token=<你的口令>`，浏览器会记住它。
+- 以后启动只处理新图。更新代码后运行 `docker compose up -d --build`；`docker compose down -v` 会删掉图库和下载的模型。
+- 梗图文件夹以只读方式挂载。容器以 uid 1000 运行；如果你把 `library` 卷换成绑定挂载，要让 uid 1000 能写那个文件夹。
+
+## 许可证
+
+代码：MIT。梗图知识库（将来有了之后）：CC BY-SA 4.0。字体 Noto Serif SC 与 JetBrains Mono 的子集按 SIL OFL 1.1 随附。
