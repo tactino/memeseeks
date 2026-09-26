@@ -60,6 +60,7 @@ class Searcher:
         current = set(self.ids)
         self.relpath = {i: idx.relpath.get(i, Path(self.paths[i]).name) for i in self.ids}
         self.text = {i: t for i, t in display_texts(idx).items() if i in current}  # what a meme's page shows
+        self.notes = {i: n for i, n in idx.notes.items() if i in current}
         keep = [k for k, i in enumerate(idx.clip_ids) if i in current]
         self.clip_ids = [idx.clip_ids[k] for k in keep]
         self.clip = idx.clip[keep] if keep else np.zeros((0, 0), np.float32)

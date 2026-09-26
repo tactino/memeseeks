@@ -298,6 +298,8 @@ body[data-view="feed"] .bar, body[data-view="feed"] .tabbar { display: none; }
 .feed-nav button:hover, .fbtn:hover { border-color: #FFD21F; }
 @media (hover: none) { .feed-nav { display: none; } }
 .meme figure a { display: contents; cursor: zoom-in; }
+.meme .meme-name { display: inline-block; margin-top: 10px; background: var(--accent); color: var(--on-accent); border-color: var(--ink); }
+.meme .translation { margin: 10px 0 0; padding-left: 17px; color: var(--muted); font: 15px/1.8 var(--font-content-serif); }
 
 /* ---------- the first run: downloading the models ---------- */
 .readybar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 var(--s4); padding: 10px 14px;

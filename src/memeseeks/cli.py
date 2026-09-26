@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from . import __version__
-from .index import failure_counts
+from .index import build_text_vectors, failure_counts, load_index
 from .library import Library, LibraryError, Models, default_home
 from .search import EmptyLibrary, Searcher
 
@@ -38,6 +38,11 @@ def _parser() -> argparse.ArgumentParser:
                    help="from now on also tidy each meme's text with a local vision-language model (needs a GPU with ~20 GB)")
     t.add_argument("--no-tidy", action="store_true", help="stop tidying text with the model for this library")
     a.add_argument("--retry-failed", action="store_true", help="redo images that failed a step last time")
+    tr = sub.add_parser("tidy-remote", help="tidy meme text on another computer that has a GPU, over ssh")
+    tr.add_argument("--host", help="its ssh host (a name from ~/.ssh/config works); log in with a key first")
+    tr.add_argument("--home", help="the folder there with .venv (memeseeks[ml] installed) and hf-cache")
+    tr.add_argument("--off", action="store_true", help="stop sending memes there")
+    tr.add_argument("--out", type=Path, help="just look: write every meme's result to this file, leave the library alone")
     s = sub.add_parser("search", help="search the library")
     s.add_argument("query")
     s.add_argument("-k", type=_positive, default=10, help="how many less certain candidates to list")
@@ -222,7 +227,8 @@ def _status(lib: Library, models: Models) -> None:
     print(f"images: {len(searcher.ids) if searcher else 0}")
     print(f"with text: {len(searcher.text) if searcher else 0}")
     print(f"vlm: {'on' if cfg['vlm'] else 'off'}")
-    print(f"tidy: {'on' if cfg['tidy'] else 'off'}")
+    where = cfg.get("tidy_remote")
+    print(f"tidy: {'on' if cfg['tidy'] else 'on ' + where['host'] + ':' + where['home'] if where else 'off'}")
     if lib.index_dir.exists():
         counts = failure_counts(lib.index_dir)
         print("failed: " + ", ".join(f"{stage} {n}" for stage, n in counts.items()))
@@ -255,13 +261,47 @@ def _add(lib: Library, models: Models, folder: str, vlm: bool = False, no_vlm: b
         print(f"{sum(failed.values())} image(s) failed a step ({detail}); they are still found through the "
               "other steps. Run `memeseeks add <folder> --retry-failed` to redo them.")
     if "tidy_error" in report:
-        print(f"warning: the model that tidies text is unavailable ({report['tidy_error']}); "
-              "use --no-tidy to turn it off", file=sys.stderr)
+        off = "memeseeks tidy-remote --off" if lib.config().get("tidy_remote") else "--no-tidy"
+        print(f"warning: text was not tidied ({report['tidy_error']}); use {off} to turn it off", file=sys.stderr)
     if "vlm_error" in report:
         print(f"warning: VLM unavailable, descriptions skipped ({report['vlm_error']}); "
               "use --no-vlm to turn it off", file=sys.stderr)
     for missing in report["missing_sources"]:
         print(f"warning: source folder is gone: {missing}", file=sys.stderr)
+    return 0
+
+
+def _tidy_remote(lib: Library, models: Models, host, home, off: bool, out) -> int:
+    from . import remote
+
+    if off:
+        lib.set_tidy_remote(None)
+        print("memes are no longer sent to another computer to be tidied")
+        return 0
+    where = dict(lib.config().get("tidy_remote") or {})
+    where.update({k: v for k, v in (("host", host), ("home", home)) if v})
+    if not where.get("host") or not where.get("home"):
+        return _fail("give --host and --home: the computer with the GPU, and the folder there with .venv and hf-cache")
+    if not lib.paths():
+        return _fail("the library is empty; `memeseeks add <folder>` first")
+
+    def progress(stage, done, total):
+        print(f"\rtidying on {where['host']}: {done}/{total}", end="", file=sys.stderr, flush=True)
+
+    try:
+        n = remote.run(lib, where, out=out, progress=progress)
+    except remote.RemoteError as exc:
+        print(file=sys.stderr)
+        return _fail(f"{exc}\nnothing was changed; check that `ssh {where['host']}` logs in without a password")
+    print(file=sys.stderr)
+    if out is not None:
+        print(f"{n} results in {out}; the library is unchanged")
+        return 0
+    lib.set_tidy_remote(where)  # it worked: from now on new memes go there too
+    if n:  # a meme's name is searchable: embed the texts again
+        build_text_vectors(load_index(lib.index_dir), lib.index_dir, models.get("bge"), log=lambda m: None)
+    print(f"tidied {n} memes" if n else "every meme is tidied already")
+    print(f"new memes will be sent to {where['host']} whenever the library updates")
     return 0
 
 
@@ -304,6 +344,8 @@ def main(argv=None, models: Models | None = None) -> int:
                 else:
                     print("没有把握的结果。可能相关：")
                     show(maybe)
+        elif args.cmd == "tidy-remote":
+            return _tidy_remote(lib, models, args.host, args.home, args.off, args.out)
         elif args.cmd == "status":
             _status(lib, models)
         elif args.cmd == "serve":

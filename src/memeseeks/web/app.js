@@ -409,7 +409,10 @@ async function memePage({ id }) {
     h("figure", {}, h("a", { href: `?view=feed&meme=${m.id}`, title: "全屏，接着刷相似的梗" }, picture)),
     h("aside", {},
       h("div.kicker", { text: [pad(m.no), added && `进库于 ${added}`].filter(Boolean).join(" · ") }),
+      m.meme_name ? h("a.chip.meme-name", { href: `?q=${encodeURIComponent(m.meme_name)}`, title: "找找同一个梗的其他图",
+        text: `梗：${m.meme_name}` }) : null,
       text ? [h("h3", { text: "图中文字" }), h("blockquote", { text })] : null,
+      m.translation ? h("p.translation", { text: `【译】${m.translation}` }) : null,
       h("h3.s-src", { text: "出处" }), sources,
       h("h3.s-alb", { text: "图集" }), chips,
       h("h3.s-act", { text: "操作" }), h("div.actions", {}, like, addTo, ...shareButtons(m)),
@@ -681,7 +684,7 @@ const readyBar = h("div.readybar", { role: "status", hidden: true });
 $(".bar").after(readyBar);
 let modelsReady = true, wasIndexing = false, readyTimer = null;
 const gb = (n) => (n / 1e9).toFixed(1);
-const STAGES = { ocr: "第 1 步：识别图里的文字", vlm: "写图的描述", tidy: "整理图里的文字", clip: "第 2 步：看图" };
+const STAGES = { ocr: "第 1 步：识别图里的文字", vlm: "写图的描述", tidy: "整理图里的文字", notes: "认出是哪个梗", clip: "第 2 步：看图" };
 
 function showBar(text, share, error = false) {
   readyBar.replaceChildren(h("span", { text }),

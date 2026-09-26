@@ -15,6 +15,7 @@ from .images import ImageRecord, load_image
 from .maintext import common_lines, main_text
 from .models.ocr import OcrLine
 from .models.vlm import description_text
+from .tidy import meme_name
 
 CLIP_CHUNK = 16  # images per batch; also how often indexing progress moves in the CLIP stage
 
@@ -128,8 +129,9 @@ def build_index(records: list[ImageRecord], out_dir, ocr=None, vlm=None, clip=No
         _jsonl_stage(records, out / "ocr.jsonl", lambda im: [asdict(line) for line in ocr(im)], "ocr", log, progress)
     if vlm is not None:
         _jsonl_stage(records, out / "vlm.jsonl", vlm.describe, "vlm", log, progress)
-    if tidy is not None:  # the text tidied by a vision-language model (tidy.py)
+    if tidy is not None:  # the text tidied by a vision-language model, and what else it can tell (tidy.py)
         _jsonl_stage(records, out / "tidy.jsonl", tidy, "tidy", log, progress)
+        _jsonl_stage(records, out / "notes.jsonl", tidy.notes, "notes", log, progress)
     if clip is not None:
         _clip_stage(records, out, clip, log, progress)
 
@@ -142,6 +144,7 @@ class LoadedIndex:
     clip: np.ndarray
     relpath: dict[str, str]
     tidy: dict[str, object] = field(default_factory=dict)  # tidy.py's text, where it ran
+    notes: dict[str, object] = field(default_factory=dict)  # tidy.py's notes: the meme's name, a translation…
 
 
 def load_index(out_dir, vlm_file: str = "vlm.jsonl") -> LoadedIndex:
@@ -156,24 +159,33 @@ def load_index(out_dir, vlm_file: str = "vlm.jsonl") -> LoadedIndex:
         clip=vecs if vecs is not None else np.zeros((0, 0), np.float32),
         relpath=json.loads((out / "relpaths.json").read_text(encoding="utf-8")) if (out / "relpaths.json").exists() else {},
         tidy={k: v["value"] for k, v in _read_jsonl(out / "tidy.jsonl").items()},
+        notes={k: v["value"] for k, v in _read_jsonl(out / "notes.jsonl").items()},
     )
 
 
 def route_texts(idx: LoadedIndex) -> dict[str, dict[str, str]]:
     """Non-empty text per image for each text route; OCR/VLM error rows count as no text. For OCR it is the
     meme's own words (maintext.py): no watermarks, accounts or screen furniture, wrapped lines joined."""
-    lines = {i: [OcrLine(**l) for l in v] for i, v in idx.ocr.items() if isinstance(v, list)}
-    common = common_lines(lines.values())
-    ocr = {i: main_text(ls, common) for i, ls in lines.items()}
+    ocr = _main_texts(idx)
+    for i, note in idx.notes.items():  # the meme's name, when the model knew it: 电车难题 finds its meme
+        name = meme_name(note)
+        if name:
+            ocr[i] = f"{ocr.get(i, '')}\n{name}".strip()
     vlm = {i: description_text(v) for i, v in idx.vlm.items() if isinstance(v, dict) and "_error" not in v}
     return {"ocr": {i: t for i, t in ocr.items() if t.strip()},
             "vlm": {i: t for i, t in vlm.items() if t.strip()}}
 
 
+def _main_texts(idx: LoadedIndex) -> dict[str, str]:
+    lines = {i: [OcrLine(**l) for l in v] for i, v in idx.ocr.items() if isinstance(v, list)}
+    common = common_lines(lines.values())
+    return {i: main_text(ls, common) for i, ls in lines.items()}
+
+
 def display_texts(idx: LoadedIndex) -> dict[str, str]:
     """What the meme page shows: the text a vision-language model tidied (tidy.py) where it ran, else the rules'
     text. Search keeps the rules' text: on the maintainer's queries it matched a little better (tidy.md)."""
-    shown = dict(route_texts(idx)["ocr"])
+    shown = {i: t for i, t in _main_texts(idx).items() if t.strip()}
     shown.update({i: t for i, t in idx.tidy.items() if isinstance(t, str) and t.strip()})
     return shown
 

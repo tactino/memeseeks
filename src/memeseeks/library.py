@@ -101,6 +101,15 @@ class Library:
         cfg["tidy"] = bool(on)
         self._save(cfg)
 
+    def set_tidy_remote(self, where: dict | None) -> None:
+        """{"host", "home"}: tidy text on that computer over ssh (remote.py); None: stop."""
+        cfg = self.config()
+        if where:
+            cfg["tidy_remote"] = {"host": where["host"], "home": where["home"]}
+        else:
+            cfg.pop("tidy_remote", None)
+        self._save(cfg)
+
     def records(self) -> tuple[list[ImageRecord], dict]:
         report = {"unreadable": [], "duplicates": 0, "skipped": 0, "missing_sources": []}
         records, seen = [], set()
@@ -150,6 +159,13 @@ class Library:
                 report["tidy_error"] = f"{type(exc).__name__}: {exc}"
             else:
                 build_index(records, self.index_dir, tidy=tidier, log=log, progress=progress)
+        elif self.config().get("tidy_remote"):
+            from . import remote
+
+            try:
+                remote.run(self, self.config()["tidy_remote"], progress=progress)
+            except Exception as exc:  # that computer is off or unreachable: the next update sends them
+                report["tidy_error"] = f"{type(exc).__name__}: {exc}"
         build_text_vectors(load_index(self.index_dir), self.index_dir, bge, log=log)
         report["images"] = len(records)
         report["failed"] = failure_counts(self.index_dir)

@@ -39,6 +39,56 @@ PROMPT = """这是一张梗图（常见的是社交网站截图、聊天记录�
 - 吃了。
 【评论】某某频道：这也能聊起来？"""
 
+# A second question, asked separately so the text above stays as it is: what else the model can tell about a meme.
+# Checked on the maintainer's collection (experiments/results/explore.md): the meme's name and a translation are
+# used; the rest is kept for later.
+NOTES_PROMPT = """请看这张图，只输出一个 JSON 对象，不要输出其他任何内容。字段：
+"类型"：从这三个里选一个——
+  "梗图"：单独拿出来看就好笑或有意思的图（段子、帖子截图、聊天截图、配文图、漫画），重点在图要讲的内容；
+  "表情包"：聊天时发给别人、用来表达情绪或回应对方的图（通常是一个人物或动物的表情或动作，配几个字或不配字）；
+  "其他"：普通照片、广告、没有笑点的截图等。
+"梗"：如果这是某个知名的梗或模板（例如“电车难题”“每个人身体里都有两只狼”“Pop猫”“Drake 不要/要”），写出它的名字，否则写空字符串。
+"画面"：一句话描述画面里有什么（人物、动物、场景、动作、表情），不超过 30 个字。
+"情绪"：这张图表达的情绪或态度，1 到 3 个词组成的数组（例如 无语、破防、开心、阴阳怪气、摆烂）。
+"翻译"：如果图里的主要文字是外文、而且图里没有中文翻译，把它翻成通顺的中文；否则写空字符串。
+"说话人"：如果图里是聊天记录或对话，按出现顺序列出说话的双方（例如 ["我", "对方"] 或 ["撒旦", "我"]），否则写空数组。"""
+
+_NOTE_FIELDS = {"类型": str, "梗": str, "画面": str, "情绪": list, "翻译": str, "说话人": list}
+
+
+def clean_notes(raw: str) -> dict:
+    """The model's JSON, with only the fields asked for, each of the type asked for."""
+    from .models.vlm import parse_json_object
+
+    found = parse_json_object(raw)
+    out = {}
+    for key, kind in _NOTE_FIELDS.items():
+        value = found.get(key)
+        if kind is str:
+            out[key] = value.strip() if isinstance(value, str) else ""
+        else:
+            out[key] = [str(v).strip() for v in value if str(v).strip()] if isinstance(value, list) else []
+    if out["类型"] not in ("梗图", "表情包", "其他"):
+        out["类型"] = ""
+    out["梗"] = meme_name(out)
+    return out
+
+
+def meme_name(note) -> str:
+    """The meme's name from its notes: none when the model named a kind of image rather than a meme (猫猫表情包)."""
+    name = note.get("梗") if isinstance(note, dict) else None
+    if not isinstance(name, str) or re.search(r"(表情包|表情|梗图)$", name.strip()):
+        return ""
+    return name.strip()
+
+
+def wants_translation(text: str) -> bool:
+    """Whether a translation belongs under this text: it has one, and it is mostly not Chinese."""
+    letters = [c for c in text if c.isalpha()]
+    han = sum(1 for c in letters if 0x4E00 <= ord(c) <= 0x9FFF)
+    return bool(letters) and han * 2 < len(letters)
+
+
 COMMENT = "【评论】"
 _EXAMPLE = ("某某频道", "你今天吃了吗")  # the prompt's example: never a meme's text
 _NOTHING = {"无", "无。", "（无）", "(无)", "没有文字", "无文字"}
@@ -89,20 +139,25 @@ class Tidier:
         self.processor = AutoProcessor.from_pretrained(model_id)
         self.model = AutoModelForImageTextToText.from_pretrained(model_id, dtype=torch.bfloat16, device_map="cuda").eval()
 
-    def __call__(self, image) -> str:
-        messages = [{"role": "user", "content": [{"type": "image", "image": image}, {"type": "text", "text": PROMPT}]}]
+    def _ask(self, image, prompt: str, max_new_tokens: int) -> str:
+        messages = [{"role": "user", "content": [{"type": "image", "image": image}, {"type": "text", "text": prompt}]}]
         inputs = self.processor.apply_chat_template(messages, tokenize=True, add_generation_prompt=True,
                                                     return_dict=True, return_tensors="pt").to(self.model.device)
         with self._torch.inference_mode():
-            ids = self.model.generate(**inputs, max_new_tokens=600, do_sample=False)
-        raw = self.processor.batch_decode(ids[:, inputs["input_ids"].shape[1]:], skip_special_tokens=True)[0]
-        return clean(raw)
+            ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+        return self.processor.batch_decode(ids[:, inputs["input_ids"].shape[1]:], skip_special_tokens=True)[0]
+
+    def __call__(self, image) -> str:
+        return clean(self._ask(image, PROMPT, 600))
+
+    def notes(self, image) -> dict:
+        return clean_notes(self._ask(image, NOTES_PROMPT, 300))
 
 
 def main(argv=None) -> int:
     """python -m memeseeks.tidy <folder> <out.jsonl>: tidy every image in a folder (named <id>.<ext>), one JSON
-    line per image, skipping ids already in out.jsonl. For a library whose own computer has no GPU: run this on
-    one that has (tools/tidy_remote.py), then bring the lines back into the library's index/tidy.jsonl."""
+    line per image ({"id", "value": the text, "notes": {...}}), skipping ids already in out.jsonl. For a library
+    whose own computer has no GPU: run this on one that has (remote.py), and bring the lines back."""
     import json
 
     from .images import load_image
@@ -117,10 +172,12 @@ def main(argv=None) -> int:
     with out.open("a", encoding="utf-8") as f:
         for k, path in enumerate(todo, 1):
             try:
-                value = tidier(load_image(str(path)))
+                image = load_image(str(path))
+                value, notes = tidier(image), tidier.notes(image)
             except Exception as exc:  # one bad image must not stop the rest
-                value = {"_error": f"{type(exc).__name__}: {exc}"}
-            f.write(json.dumps({"id": path.stem, "relpath": path.name, "value": value}, ensure_ascii=False) + "\n")
+                value = notes = {"_error": f"{type(exc).__name__}: {exc}"}
+            f.write(json.dumps({"id": path.stem, "relpath": path.name, "value": value, "notes": notes},
+                               ensure_ascii=False) + "\n")
             f.flush()
             print(f"tidy: {k}/{len(todo)}", flush=True)
     return 0

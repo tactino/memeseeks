@@ -65,7 +65,7 @@ class BackgroundIndexer:
         self._thread: threading.Thread | None = None
         self._signature = None
         self._pending_since: float | None = None
-        self._state = {"running": False, "last_error": None, "last_images": None, "progress": None}
+        self._state = {"running": False, "last_error": None, "last_images": None, "progress": None, "tidy_error": None}
 
     def request(self) -> None:
         """Index soon: after `debounce` seconds without another request."""
@@ -92,7 +92,7 @@ class BackgroundIndexer:
         try:
             with self.priority():
                 report = self.library.update(self.models, log=lambda message: None, progress=self._progress)
-            self._state.update(last_error=None, last_images=report["images"])
+            self._state.update(last_error=None, last_images=report["images"], tidy_error=report.get("tidy_error"))
         except Exception as exc:  # keep serving; the next change retries
             self._state["last_error"] = f"{type(exc).__name__}: {exc}"
         finally:

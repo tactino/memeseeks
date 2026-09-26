@@ -19,10 +19,11 @@ from .review import Review
 from .index import _atomic_write_text, _tmp_for
 from .search import Searcher
 from .settings import Settings
+from .tidy import meme_name, wants_translation
 
 THUMB_QUALITY = 82
 # Everything a Searcher reads: if any of these changed, rebuild it (an add writes them over minutes).
-_WATCHED = ["paths.json", "relpaths.json", "ocr.jsonl", "vlm.jsonl", "tidy.jsonl", "clip_ids.json", "clip.npy",
+_WATCHED = ["paths.json", "relpaths.json", "ocr.jsonl", "vlm.jsonl", "tidy.jsonl", "notes.jsonl", "clip_ids.json", "clip.npy",
             "text_ocr.json", "text_vlm.json"]
 
 
@@ -176,6 +177,10 @@ class LibraryService:
         item["liked"] = LIKED in item["albums"]
         item["added"] = self.added_at(image_id, s)
         item["similar"] = self.similar(image_id) if similar else []
+        note = s.notes.get(image_id) if isinstance(s.notes.get(image_id), dict) else {}
+        item["meme_name"] = self._script(meme_name(note))               # 电车难题: search for more of it
+        foreign = wants_translation(s.text.get(image_id, ""))           # 【译】, for a meme in another language
+        item["translation"] = self._script(note.get("翻译", "")) if foreign else ""
         return item
 
     # ---------- 图集 ----------

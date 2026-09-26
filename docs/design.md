@@ -173,10 +173,20 @@ buttons and noise are left out, and wrapped lines are joined back into sentences
 相似的梗 use the same text (`maintext.py`; numbers in `experiments/results/maintext.md`).
 
 Where a GPU is available, a vision-language model writes the text out instead (`tidy.py`, `memeseeks add
---tidy`; for a library on a computer without one, `scripts/tidy_remote.py` runs it on another): misread
-characters put right, a dialogue one line each as `- …`, a comment or reply as `【评论】名字：…`, a translation
-without its original. The meme page shows that text; search keeps the rules' text, which matched the
-maintainer's queries a little better (`experiments/results/tidy.md`).
+--tidy`): misread characters put right, a dialogue one line each as `- …`, a comment or reply as
+`【评论】名字：…`, a translation without its original. The meme page shows that text; search keeps the rules'
+text, which matched the maintainer's queries a little better (`experiments/results/tidy.md`).
+
+The same model is asked a second question, separately so the text stays as it was: what else it can tell
+(`experiments/results/explore.md`). Two answers are used. The meme's name, when it is a known one (电车难题),
+is a chip on the meme page that searches for more of it, and is searchable itself. A translation, for a meme in
+another language with none printed, is shown as 【译】 under its text. Its guess at 梗图 or 表情包 is not used:
+it would let in half of what the maintainer turned down in 待确认.
+
+For a library on a computer without a GPU, `memeseeks tidy-remote --host H --home DIR` runs both on one that
+has, over ssh (`remote.py`), and saves where: from then on every update of the library sends the memes it has
+not tidied yet, and deletes them there once their results are back. When that computer is off, the library
+still updates; the memes go next time.
 
 ## First run
 

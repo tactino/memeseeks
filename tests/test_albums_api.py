@@ -209,3 +209,18 @@ def test_traditional_characters_are_shown_simplified_unless_asked_not_to(tmp_pat
     assert client.get(f"/api/meme/{ids['cat.png']}").json()["text"] == "- 可以帮我P掉柱子吗？\n- 如你所愿"
     client.put("/api/settings", json={"script": "original"})
     assert client.get(f"/api/meme/{ids['cat.png']}").json()["text"] == "- 可以幫我P掉柱子嗎？\n- 如你所願"
+
+
+def test_the_meme_page_carries_the_memes_name_and_a_translation(tmp_path):
+    import json
+
+    client, lib, _, ids = _setup(tmp_path)
+    (lib.index_dir / "tidy.jsonl").write_text(json.dumps({"id": ids["dog.png"], "value": "Thanks, mailman."}),
+                                              encoding="utf-8")
+    (lib.index_dir / "notes.jsonl").write_text("\n".join(json.dumps({"id": i, "value": v}, ensure_ascii=False) for i, v in (
+        (ids["dog.png"], {"梗": "电车难题", "翻译": "謝謝，郵遞員"}), (ids["cat.png"], {"梗": "", "翻译": "猫猫"}))),
+        encoding="utf-8")
+    page = client.get(f"/api/meme/{ids['dog.png']}").json()
+    assert page["meme_name"] == "电车难题" and page["translation"] == "谢谢，邮递员"   # shown simplified, like the text
+    cat = client.get(f"/api/meme/{ids['cat.png']}").json()
+    assert cat["meme_name"] == "" and cat["translation"] == ""  # its text, 猫猫, is Chinese already
