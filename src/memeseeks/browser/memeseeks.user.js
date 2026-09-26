@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         迷因捕手
 // @namespace    memeseeks
-// @version      0.2.0
+// @version      0.3.0
 // @description  Collect the memes on the page you are reading into your own memeseeks library. Only acts when you click.
 // @match        *://*/*
 // @noframes
@@ -16,8 +16,9 @@
 // ==/UserScript==
 
 // What it does: when you click the cat (采集 meme), it lists the images on the page you are looking at and
-// sends the ones you tick to your memeseeks server. It never turns pages or runs on its own, and it sends
-// nothing but the image, the site name, the page link, the page title and the 图集 you chose.
+// sends the ones you tick to your memeseeks server; a picture you drag from the page onto the cat is sent
+// the same way. It never turns pages or runs on its own, and it sends nothing but the image, the site name,
+// the page link, the page title and the 图集 you chose.
 
 (function () {
   "use strict";
@@ -52,6 +53,15 @@
     const list = Array.isArray(image.infoList) ? image.infoList : [];
     const full = list.find((x) => x && x.imageScene === "WB_DFT" && x.url);
     return (full && full.url) || image.urlDefault || image.url || image.urlPre || null;
+  }
+
+  function droppedImageUrl(html, uris, base) {
+    // A dragged picture carries its HTML (<img src=…>) and a URI list. For a picture inside a link the list
+    // holds the link's target, not the picture, so the <img> comes first.
+    const m = /<img\b[^>]*?\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(html || "");
+    const src = m ? (m[1] || m[2] || m[3] || "").replace(/&amp;/g, "&") : "";
+    const uri = (uris || "").split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith("#")) || "";
+    return (src && absolute(src, base)) || (uri && absolute(uri, base)) || null;  // "" would resolve to the page
   }
 
   function looksLikeContent(w, h) {
@@ -229,9 +239,7 @@
     * { box-sizing: border-box; }
     .root { --ink: #161411; --paper: #F3EFE4; --accent: #FFD21F; --red: #DE3B2E; --blue: #1F4FA3; --muted: #6E685C;
       font: 14px/1.5 system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--ink); }
-    .fab { position: fixed; left: 0; top: 0; z-index: 2147483000; display: flex; align-items: center; touch-action: none; }
-    .fab.label-right { flex-direction: row-reverse; }
-    .fab.label-right .label { margin: 0 0 0 10px; transform: translateX(-8px); }
+    .fab { position: fixed; left: 0; top: 0; z-index: 2147483000; touch-action: none; }
     .fab.dragging .cat { cursor: grabbing; transform: translate(-2px, -2px) rotate(-4deg); box-shadow: 7px 7px 0 var(--ink); transition: none; }
     .fab.dragging .label { opacity: 0 !important; }
     .cat { width: 56px; height: 56px; padding: 5px; background: var(--paper); border: 2.5px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
@@ -239,13 +247,19 @@
     .cat:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
     .cat:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
     .cat svg { width: 100%; height: 100%; display: block; overflow: visible; }
-    .label { display: flex; align-items: stretch; background: var(--ink); color: #fff; font-weight: 700; margin-right: 10px; line-height: 32px;
+    /* beside the cat, out of the layout: however long its words, the cat stays where you put it */
+    .label { position: absolute; top: 50%; right: calc(100% + 10px); transform: translate(8px, -50%);
+      display: flex; align-items: stretch; background: var(--ink); color: #fff; font-weight: 700; line-height: 32px;
       padding-right: 12px; white-space: nowrap; opacity: 0; transform: translateX(8px); pointer-events: none; transition: opacity .18s, transform .18s; }
     .label b { width: 8px; background: var(--accent); margin-right: 10px; }
-    .fab:hover .label, .fab.show-label .label { opacity: 1; transform: none; }
+    .label span { max-width: min(22em, 60vw); overflow: hidden; text-overflow: ellipsis; }
+    .fab.label-right .label { right: auto; left: calc(100% + 10px); transform: translate(-8px, -50%); }
+    .fab:hover .label, .fab.show-label .label { opacity: 1; transform: translate(0, -50%); }
+    .label.err b { background: var(--red); }
+    .fab.dropready .cat { transform: scale(1.12); box-shadow: 5px 5px 0 var(--ink); }
+    .fab.dropover .cat { transform: scale(1.3) rotate(-4deg); background: var(--accent); box-shadow: 7px 7px 0 var(--ink); }
     .count { position: absolute; right: -8px; top: -10px; background: var(--ink); color: var(--accent); font: 700 12px/1 Consolas, monospace;
       padding: 4px 6px; opacity: 0; transition: opacity .2s; }
-    .fab.label-right .count { right: auto; left: 48px; }
     .count.on { opacity: 1; }
     .count.bump { animation: bump .22s cubic-bezier(.2, .8, .2, 1); }
     @keyframes bump { from { transform: scale(1.35); } to { transform: scale(1); } }
@@ -360,8 +374,7 @@
       const x = Math.min(w - MARGIN - r.width / 2 - 6, Math.max(MARGIN + r.width / 2, cx));
       const y = Math.min(h - MARGIN - r.height / 2 - 6, Math.max(MARGIN + r.height / 2, cy));
       fab.classList.toggle("label-right", x < w / 2);  // the label slides out towards the middle
-      const lab = $(".label").getBoundingClientRect().width + 10;
-      fab.style.transform = `translate(${x - r.width / 2 - (x < w / 2 ? 0 : lab)}px, ${y - r.height / 2}px)`;
+      fab.style.transform = `translate(${x - r.width / 2}px, ${y - r.height / 2}px)`;
       if (!panel.hidden) placePanel();
     };
     let drag = null;
@@ -545,12 +558,91 @@
       setTimeout(() => count.classList.remove("on"), 1500);
     });
 
+    // ---- a picture dragged from the page onto the cat: it swallows it ----
+    let eatingDrop = false, flashTimer = null, countTimer = null;
+    const label = $(".label");
+    const flash = (text, kind = "ok") => {  // a short word next to the cat (the panel may be closed)
+      clearTimeout(flashTimer);
+      labelText.textContent = text;
+      label.classList.toggle("err", kind === "err");
+      fab.classList.add("show-label");
+      flashTimer = setTimeout(() => {
+        fab.classList.remove("show-label");
+        label.classList.remove("err");
+        labelText.textContent = "采集 meme";
+      }, kind === "err" ? 4500 : 2200);
+    };
+    const settle = () => {  // the drag ended without a drop on the cat
+      fab.classList.remove("dropready", "dropover");
+      if (busy || eatingDrop) return;
+      fab.classList.remove("show-label");
+      labelText.textContent = "采集 meme";
+      setCat(0, 1);
+    };
+    const carriesPicture = (e) => e.dataTransfer && [...e.dataTransfer.types].some((t) => t === "text/html" || t === "text/uri-list");
+    document.addEventListener("dragstart", (e) => {
+      const t = e.target;
+      const picture = t instanceof Element && (t.tagName === "IMG" || (t.tagName === "A" && t.querySelector("img")));
+      if (!picture || busy) return;
+      clearTimeout(flashTimer);
+      fab.classList.add("dropready", "show-label");
+      label.classList.remove("err");
+      labelText.textContent = "拖到猫嘴里";
+      setCat(0, 0);  // the bubble goes in: ready to eat
+    }, true);
+    document.addEventListener("dragend", settle, true);
+    catBtn.addEventListener("dragenter", (e) => { if (carriesPicture(e)) { e.preventDefault(); fab.classList.add("dropover"); } });
+    catBtn.addEventListener("dragover", (e) => { if (carriesPicture(e)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } });
+    catBtn.addEventListener("dragleave", () => fab.classList.remove("dropover"));
+    catBtn.addEventListener("drop", (e) => {
+      e.preventDefault();
+      fab.classList.remove("dropover", "dropready");
+      eatDropped(droppedImageUrl(e.dataTransfer.getData("text/html"), e.dataTransfer.getData("text/uri-list"), location.href));
+    });
+
+    async function eatDropped(url) {
+      if (busy) { flash("正在采集，稍等一下", "err"); return; }
+      if (!url) { setCat(0, 1); flash("这张图拿不到地址，用面板采集试试", "err"); return; }
+      busy = eatingDrop = true;
+      // the page's own rules know the full-size picture of a thumbnail (贴吧, 小红书, 豆瓣)
+      const here = collect();
+      const item = here.items.find((it) => it.thumb === url || it.url === url)
+        || { url: siteOf(location.hostname) === "douban" ? doubanLarge(url) : url, thumb: url };
+      const album = GM_getValue("album", "") || null;  // the 图集 chosen under 放进 last time
+      labelText.textContent = "吞下去…";
+      gulp();
+      try {
+        let status, note = "";
+        try {
+          status = await send(item, here, album);
+        } catch (err) {
+          if (!album || !/no such/.test(err.message)) throw err;
+          GM_setValue("album", "");  // that 图集 was deleted: into the library only
+          status = await send(item, here, null);
+          note = "（原来选的图集不在了）";
+        }
+        if (!count.classList.contains("on")) eaten = 0;
+        bumpCount();
+        clearTimeout(countTimer);
+        countTimer = setTimeout(() => count.classList.remove("on"), 2500);
+        await gulpDone;
+        await spitOut();  // the bubble comes back: got it
+        flash(`${status === "added" ? "吞下了" : "库里已有"}${note}`);
+      } catch (err) {
+        await shut();  // the mouth stays shut while it says why, then opens again
+        flash(`没采到：${err.message.split(/[，。]/)[0]}`, "err");  // the first clause: a label, not a letter
+        setTimeout(() => { if (!busy) setCat(0, 1); }, 4500);
+      } finally {
+        busy = eatingDrop = false;
+      }
+    }
+
     document.documentElement.append(host);
     placeFab();
   }
 
   if (typeof module !== "undefined") {  // node test harness
-    module.exports = { absolute, doubanLarge, xhsImageUrl, looksLikeContent, siteOf };
+    module.exports = { absolute, doubanLarge, xhsImageUrl, looksLikeContent, siteOf, droppedImageUrl };
     return;
   }
   GM_registerMenuCommand("在这个网站隐藏采集 meme 按钮", () => {

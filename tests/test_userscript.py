@@ -52,6 +52,10 @@ def test_page_reading_rules():
       js: m.absolute("javascript:alert(1)", "https://x.com/"),
       big: m.looksLikeContent(600, 800), icon: m.looksLikeContent(48, 48), banner: m.looksLikeContent(1200, 90),
       sites: ["tieba.baidu.com", "www.xiaohongshu.com", "www.douban.com", "weibo.com", "nottieba.baidu.com.evil.io"].map(m.siteOf),
+      dropLinked: m.droppedImageUrl('<a href="/p/1"><img class="x" data-src="lazy.png" src="/pic/a.jpg?w=1&amp;h=2"></a>', "https://tieba.baidu.com/p/1", "https://tieba.baidu.com/f"),
+      dropUriOnly: m.droppedImageUrl("", "# comment\\r\\nhttps://img.example.com/b.png\\r\\n", "https://x.com/"),
+      dropDataUrl: m.droppedImageUrl('<img src="data:image/png;base64,AAAA">', "", "https://x.com/"),
+      dropNothing: m.droppedImageUrl("<p>text</p>", "", "https://x.com/"),
     }};
     console.log(JSON.stringify(out));
     """
@@ -63,6 +67,10 @@ def test_page_reading_rules():
     assert got["relative"] == "https://tieba.baidu.com/img/a.png" and got["js"] is None
     assert (got["big"], got["icon"], got["banner"]) == (True, False, False)
     assert got["sites"] == ["tieba", "xiaohongshu", "douban", "generic", "generic"]
+    # a dropped picture: its <img src> (not the link around it), else the URI list; never a data: URL
+    assert got["dropLinked"] == "https://tieba.baidu.com/pic/a.jpg?w=1&h=2"
+    assert got["dropUriOnly"] == "https://img.example.com/b.png"
+    assert got["dropDataUrl"] is None and got["dropNothing"] is None
 
 
 def test_served_script_carries_the_cat(tmp_path):

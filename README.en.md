@@ -118,6 +118,7 @@ A userscript adds a 采集 meme button to the pages you read. Click it and it li
 1. Install [Violentmonkey](https://violentmonkey.github.io/) (Firefox or Chrome).
 2. With `memeseeks serve` running, open the web app's 设置 → 连接浏览器 → 安装采集 meme 脚本. The script is generated for your server and carries a key only your library knows; without it the inbox refuses uploads.
 3. On any page, click the cat (drag it wherever you like), tick the images, pick where they go under 放进, and 采集.
+4. For a single picture, just drag it from the page onto the cat: it swallows it into the 图集 you last picked under 放进. (Some sites stop pictures from being dragged; use step 3 there.)
 
 Collected images with little text (fewer than 15 characters) are probably 表情包, so they wait under 「待确认」 in the header until you choose 要 (into the library) or 不要 (moved to `<library>/rejected`, not deleted; undo is one click). Your decisions are kept on your machine to train a personal classifier later. Images in your own folders are never held back.
 

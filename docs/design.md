@@ -182,7 +182,14 @@ remembers its place per site (menu: 猫头回到右下角). The panel opens towa
 collecting, each thumbnail flies into the cat's mouth as it arrives and the cat gulps once per meme; it
 never lags behind the last one. Done: it spits the bubble out. Failed: the mouth stays shut and a red block
 says why (the server not running stops the batch at once); closing the panel opens it again. 放进 picks
-the 图集 the memes go into (or only the library); the script remembers the choice. The cat's shapes come
+the 图集 the memes go into (or only the library); the script remembers the choice.
+
+A picture can also be dragged from the page straight onto the cat. When the drag starts the cat swallows its
+bubble and waits, mouth open, with 拖到猫嘴里 beside it; over the cat it grows and turns yellow; dropped, it
+gulps (+1), then spits the bubble out with 吞下了 or 库里已有, or stays shut with a red 没采到：… . The picture
+goes where 放进 last pointed (the library only, if that 图集 is gone); a thumbnail is swapped for the full-size
+picture when the page's rules know it. The label sits beside the cat, out of the layout, so a long word never
+moves the cat. The cat's shapes come
 from `web/popcat.js`, filled into the script when the server hands it out.
 
 ## Regenerating assets
