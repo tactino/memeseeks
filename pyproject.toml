@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "memeseeks"
 version = "0.3.0"
-description = "迷因捕手 — search the memes you saved by what you remember of them."
+description = "迷因捕手 — a free, open-source app for collecting memes and finding them by what they say."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"

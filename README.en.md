@@ -2,11 +2,17 @@
 
 [中文](README.md)
 
-Save enough memes and the one you want is never there when you need it. memeseeks is for that: search for whatever you remember of what the picture says; roughly is fine. Search 可爱的小动物 ("cute little animals") and it finds the hedgehog, Pop Cat and the kitten, though none of them says 小动物 (little animal).
+memeseeks is a free, open-source app for collecting memes and finding them again by what they say. Everything stays on your own computer.
 
-It is somewhere to keep them, too: albums, likes, and a full-screen mode to scroll through them. When you come across a good one on Tieba, Xiaohongshu or Douban, one click saves it.
+- Search the text in every meme by meaning, not word for word; Chinese (simplified and traditional) and English
+- One-click collecting while you browse, with dedicated support for Baidu Tieba, Xiaohongshu and Douban
+- Albums, favorites, and a record of where each meme came from
+- Full-screen browsing, a meme of the day, and similar memes
+- Phone access over your local network with a QR code
+- Stored locally, no account required; web search is optional and off by default
+- One-line install on Windows, macOS and Linux; a Docker image is also available
 
-Everything stays on your computer: nothing is uploaded and there is no account. Open source (MIT). This is v0.3; one command installs it on Windows, macOS or Linux, and your phone can use it over the same Wi-Fi.
+Current version: v0.3
 
 ![The home page: today's meme and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 
