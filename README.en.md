@@ -2,13 +2,22 @@
 
 [中文](README.md)
 
-Describe what you remember about a meme, get it back from your own collection. Works across Chinese and English, runs on your machine; searching the web as well is optional and off by default. It is also a personal meme collection: 图集 (like playlists), 我喜欢, 刷梗 (full screen, one meme after another), and collecting from community pages as you read them.
+**Thousands of memes saved, and the one you want to send is nowhere to be found?**
 
-**Status:** v0.3 — a local web app, the command line, one-line installers and a Docker image. A cross-language meme graph and re-making translated memes are on the roadmap.
+memeseeks is your private meme library. Remember a line from the picture, or just roughly what it said ("mom caught me up at 2 am", "where did my salary go"), and search brings it back.
+
+- **Search by memory**: the text in every image is read for you and matched by meaning, not letter for letter; Chinese (simplified or traditional) and English.
+- **Collect as you browse**: one click saves the memes on a Tieba, Xiaohongshu or Douban page; or drop images into the page, or upload from your phone's photos.
+- **Keep them sorted**: albums like playlists, and 我喜欢 for favourites; every meme has a permanent number and remembers where it came from.
+- **Browse**: full screen, one after another; the home page brings back one meme a day, and the ones you had forgotten.
+
+Your memes and their index stay on your own computer: nothing is uploaded, no account needed. Searching the web is optional and off by default. Free and open source (MIT).
+
+**Status:** v0.3 — one-line install on Windows, macOS and Linux; use it from your phone on the same Wi-Fi.
 
 ![The home page: today's meme and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 
-<sub>The demo memes in the screenshots are public-domain paintings (from Wikimedia Commons) under captions written for this project, made by `scripts/demo_memes.py`.</sub>
+<sub>The memes in the screenshots were made for this project: the captions, accounts and chats are invented, and the photos are works marked CC0 or public domain on Wikimedia Commons; `scripts/demo_memes.py` makes them.</sub>
 
 ## How it finds memes
 
@@ -103,7 +112,7 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 ### The web app
 
-![Searching 上班 (going to work): five confident matches](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
+![Searching 上班 (going to work): six confident matches](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
 
 It is a personal meme collection, a little like a music app is for songs:
 
