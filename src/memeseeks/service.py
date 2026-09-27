@@ -18,6 +18,7 @@ from .inbox import PROVENANCE_FILE, read_provenance
 from .review import Review
 from .index import _atomic_write_text, _tmp_for
 from .search import Searcher
+from .searchlog import ACTIONS, SearchLog
 from .settings import Settings
 from .tidy import meme_name, wants_translation
 
@@ -56,6 +57,7 @@ class LibraryService:
         self.albums = Collections(library.root, clock=clock)
         self.removed = Removed(library.root)
         self.settings = Settings(library.root)
+        self.search_log = SearchLog(library.root, clock=clock)
         self._numbers, self._numbers_lock = None, threading.Lock()
         self._t2s, self._simplified = None, {}  # OpenCC, loaded on first use; converted texts
 
@@ -262,8 +264,23 @@ class LibraryService:
         matches, maybe = s.split_search(query, maybe_k=maybe_k + len(hidden))
         matches = [h for h in matches if h.id not in hidden]
         maybe = [h for h in maybe if h.id not in hidden][:maybe_k]
+        if self.settings.get()["searchlog"]:
+            self.search_log.search(query, [h.id for h in matches], [h.id for h in maybe])
         return {"matches": [self._item(s, h.id, h.score, h.match) for h in matches],
                 "maybe": [self._item(s, h.id, h.score, h.match) for h in maybe]}
+
+    def note_action(self, query: str, image_id: str, action: str, rank=None, section=None) -> bool:
+        """A meme acted on after a search, for 搜索记录; nothing is kept unless the setting is on."""
+        if not self.settings.get()["searchlog"]:
+            return False
+        if not isinstance(query, str) or not query.strip() or len(query) > 200 or action not in ACTIONS:
+            raise ValueError("not a search, or not an action searchlog.py knows")
+        if image_id not in self.searcher().paths:
+            raise ValueError("no such meme")
+        rank = rank if isinstance(rank, int) and not isinstance(rank, bool) and 0 < rank < 10000 else None
+        section = section if section in ("matches", "maybe") else None
+        self.search_log.act(query.strip(), image_id, action, rank, section)
+        return True
 
     def review_list(self) -> dict:
         """Collected memes waiting for 要 / 不要, newest first, and how far training is."""

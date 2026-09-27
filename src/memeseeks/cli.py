@@ -48,6 +48,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("-k", type=_positive, default=10, help="how many less certain candidates to list")
     s.add_argument("--json", action="store_true")
     sub.add_parser("status", help="show what is in the library")
+    sl = sub.add_parser("searchlog", help="sum up 搜索记录 (the setting): how often search found what was wanted")
+    sl.add_argument("--export", type=Path, help="write it out as a queries.csv for `memeseeks eval`")
     e = sub.add_parser("eval", help="score a queries.csv (query,expected files)")
     e.add_argument("csv")
     w = sub.add_parser("serve", help="open the web app for this library")
@@ -305,6 +307,26 @@ def _tidy_remote(lib: Library, models: Models, host, home, off: bool, out) -> in
     return 0
 
 
+def _searchlog(lib: Library, export) -> int:
+    from .searchlog import SearchLog, summary
+    from .searchlog import export as write_queries
+
+    events = SearchLog(lib.root).read()
+    if not events:
+        return _fail("搜索记录 is empty: turn it on in 设置 → 搜索记录, then search as usual")
+    s = summary(events)
+    n = s["searches"] or 1
+    print(f"{s['searches']} searches; a meme was then opened or used after {s['found']} ({s['found'] / n:.0%})")
+    print(f"  it was the first result {s['found_first']} times, among the confident matches {s['found_in_matches']}, "
+          f"under 可能相关 {s['found_in_maybe']}")
+    print(f"  {s['nothing_acted']} searches led to nothing; {s['missed_then_rephrased']} of them found it when reworded")
+    if export is not None:
+        relpath = Searcher(lib, Models()).relpath if lib.paths() else {}
+        n = write_queries(events, relpath, export)
+        print(f"{n} queries in {export}; score them with `memeseeks eval {export}`")
+    return 0
+
+
 def _utf8_streams() -> None:
     """Windows encodes piped output as the ANSI code page (GBK); emit UTF-8 everywhere instead."""
     for stream in (sys.stdout, sys.stderr):
@@ -346,6 +368,8 @@ def main(argv=None, models: Models | None = None) -> int:
                     show(maybe)
         elif args.cmd == "tidy-remote":
             return _tidy_remote(lib, models, args.host, args.home, args.off, args.out)
+        elif args.cmd == "searchlog":
+            return _searchlog(lib, args.export)
         elif args.cmd == "status":
             _status(lib, models)
         elif args.cmd == "serve":

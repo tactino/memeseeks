@@ -353,6 +353,16 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
     async def seen(request: Request):
         return {"seen": service.mark_seen(_ids(await _json_body(request)))}
 
+    @app.post("/api/searchlog")
+    async def searchlog(request: Request):
+        body = await _json_body(request)
+        try:
+            logged = service.note_action(body.get("q"), body.get("id"), body.get("action"), body.get("rank"),
+                                         body.get("section"))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        return {"logged": logged}
+
     # ---------------- 手机访问 (see phone.py) ----------------
     def _this_computer_only():
         if lan or phone is None:

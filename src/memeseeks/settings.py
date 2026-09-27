@@ -18,6 +18,7 @@ CHOICES = {
     "motion": ("full", "reduced"),
     "online": (True, False),   # only matters when the server was started with a web source
     "script": ("simplified", "original"),  # 繁体字: shown in simplified characters, or as printed
+    "searchlog": (False, True),  # 搜索记录 (searchlog.py): off unless asked for
 }
 
 

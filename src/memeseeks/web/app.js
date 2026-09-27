@@ -193,6 +193,17 @@ async function toPng(blob) {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("转换失败"))), "image/png"));
 }
 
+// 搜索记录: which meme a search was for. The server keeps it only when the setting is on (searchlog.py).
+let lastSearch = null;  // { q, at: id -> [rank, "matches" | "maybe"] }, while you are on the search or what it led to
+function noteSearchAction(id, action) {
+  const at = lastSearch && lastSearch.at.get(id);
+  if (at) request("POST", "/api/searchlog", { q: lastSearch.q, id, action, rank: at[0], section: at[1] }).catch(() => {});
+}
+const noteOpen = (e) => {
+  const card = e.target.closest("a.card");
+  if (card) noteSearchAction(new URL(card.href).searchParams.get("id"), "open");
+};
+
 function shareButtons(item) {
   const out = [];
   if (canCopy) {
@@ -201,6 +212,7 @@ function shareButtons(item) {
         const png = imageFile(item).then(toPng);  // a pending promise: write() must run inside the click (Safari)
         await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
         reportShare(item);
+        noteSearchAction(item.id, "copy");
         toast("已复制");
       } catch (err) { toast(`复制失败：${err.message}`, true); }
     } }));
@@ -218,6 +230,7 @@ function shareButtons(item) {
       } catch (err) { toast(`保存失败：${err.message}`, true); }
     });
   }
+  else save.addEventListener("click", () => noteSearchAction(item.id, "save"));
   out.push(save);
   if (navigator.canShare) {
     out.push(h("button.btn", { type: "button", text: "分享", onclick: async () => {
@@ -226,6 +239,7 @@ function shareButtons(item) {
         if (!navigator.canShare({ files: [file] })) throw new Error("这个浏览器不能分享图片，请用保存");
         await navigator.share({ files: [file] });
         reportShare(item);
+        noteSearchAction(item.id, "share");
       } catch (err) { if (err.name !== "AbortError") toast(`分享失败：${err.message}`, true); }
     } }));
   }
@@ -353,12 +367,15 @@ async function searchPage({ q }) {
     return h("section.blank", {}, loader(), h("h2", { text: "还在准备" }), h("p", { text: "模型加载好就会自动搜索「" + q + "」。" }));
   }
   const [{ matches, maybe }, online] = await Promise.all([found, onlineSection(q)]);
+  lastSearch = { q, at: new Map([...matches.map((m, k) => [m.id, [k + 1, "matches"]]),
+    ...maybe.map((m, k) => [m.id, [matches.length + k + 1, "maybe"]])]) };
   const out = [h("div.results-head", {}, h("h1.page-title", { text: matches.length ? `捕到 ${matches.length} 张` : "没有把握的结果" }),
     h("span.meta", { text: `「${q}」` }))];
-  if (matches.length) out.push(grid(matches));
+  if (matches.length) out.push(Object.assign(grid(matches), { onclick: noteOpen }));
   else if (!maybe.length) out.push(blank(1, "这里还没有梗", "换个说法试试，或者直接写图里的字。"));
   else out.push(h("p.notice", { text: "换个说法试试，或者直接写图里的字。下面是沾点边的：" }));
-  if (maybe.length) out.push(h("details.maybe", { open: !matches.length }, h("summary", { text: `可能相关（${maybe.length}）` }), grid(maybe)));
+  if (maybe.length) out.push(h("details.maybe", { open: !matches.length }, h("summary", { text: `可能相关（${maybe.length}）` }),
+    Object.assign(grid(maybe), { onclick: noteOpen })));
   if (online) out.push(online);
   return out;
 }
@@ -389,11 +406,12 @@ async function memePage({ id }) {
     try {
       await request("POST", `/api/albums/liked/${m.liked ? "remove" : "add"}`, { ids: [m.id] });
       m.liked = !m.liked;
+      if (m.liked) noteSearchAction(m.id, "like");
       m.albums = m.liked ? [...m.albums, "liked"] : m.albums.filter((a) => a !== "liked");
       refresh();
     } catch (err) { toast(err.message, true); }
   });
-  const addTo = h("button.btn", { type: "button", text: "加入图集", onclick: () => openPicker(m, (id2, name) => { names[id2] = name; refresh(); }) });
+  const addTo = h("button.btn", { type: "button", text: "加入图集", onclick: () => openPicker(m, (id2, name) => { names[id2] = name; refresh(); noteSearchAction(m.id, "album"); }) });
   const own = !(m.sources && m.sources.length);
   const remove = h("button.linkish.danger", { type: "button", text: "移出图库", onclick: async () => {
     if (!confirm(own ? "把这张梗图移出图库？你文件夹里的原图不会被删除，只是不再显示。" : "把这张梗图移出图库？它会被移到图库的 rejected 文件夹。")) return;
@@ -586,6 +604,8 @@ async function settingsPage() {
     h("div.settings", {},
       row("主题", choice("theme", [["paper", "纸色"], ["night", "夜间"]])),
       row("蒙德里安边框", choice("frame", [[true, "开"], [false, "关"]])),
+      row("搜索记录", choice("searchlog", [[true, "开"], [false, "关"]]),
+        h("p.hint", { text: "每次搜索和搜完点开、用了哪张都会记下，只存在这台电脑上，用来改进搜索。" })),
       row("繁体字", choice("script", [["simplified", "转成简体"], ["original", "保持原样"]]),
         h("p.hint", { text: "梗图里的繁体字显示成简体；搜索不受影响，简体繁体都能搜到。" })),
       row("开场动画", choice("intro", [[true, "开"], [false, "关"]]), h("p.hint", { text: "每次打开迷因捕手时播放一次。" })),
@@ -840,6 +860,7 @@ async function feedPage(r) {
     try {
       await request("POST", `/api/albums/liked/${m.liked ? "remove" : "add"}`, { ids: [m.id] });
       m.liked = !m.liked;
+      if (m.liked) noteSearchAction(m.id, "like");
       m.albums = m.liked ? [...m.albums, "liked"] : m.albums.filter((a) => a !== "liked");
       paint();
     } catch (err) { toast(err.message, true); }
@@ -980,6 +1001,7 @@ async function render({ back = false, slide = true } = {}) {
   const token = ++renderToken;
   document.title = "迷因捕手";
   uploadTarget = null;
+  if (!["search", "meme", "feed"].includes(r.view)) lastSearch = null;  // what you do elsewhere is not that search's
   // the header follows the page; switched with the page itself, so a slide never shows both logos at once
   const frame = () => {
     document.body.dataset.view = r.view;

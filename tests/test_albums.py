@@ -77,7 +77,7 @@ def test_removed_ids_accumulate(tmp_path):
 def test_settings_defaults_validation_and_bad_values_on_disk(tmp_path):
     s = Settings(tmp_path)
     assert s.get() == {"theme": "paper", "frame": True, "intro": True, "motion": "full", "online": True,
-                       "script": "simplified"}
+                       "script": "simplified", "searchlog": False}
     assert s.update({"theme": "night", "intro": False})["theme"] == "night"
     assert Settings(tmp_path).get()["intro"] is False
     for bad in [{"theme": "pink"}, {"frame": "yes"}, {"frame": 1}, {"colour": "red"}]:
@@ -85,7 +85,7 @@ def test_settings_defaults_validation_and_bad_values_on_disk(tmp_path):
             s.update(bad)
     (tmp_path / "settings.json").write_text('{"theme": "neon", "motion": "reduced", "extra": 1}', encoding="utf-8")
     assert s.get() == {"theme": "paper", "frame": True, "intro": True, "motion": "reduced", "online": True,
-                       "script": "simplified"}
+                       "script": "simplified", "searchlog": False}
 
 
 def test_platform_watermarks_are_hidden_from_shown_text():
