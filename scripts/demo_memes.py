@@ -1,4 +1,4 @@
-"""Make a small set of demo memes: for the README's screenshots, or to try memeseeks without a collection.
+"""Make a small set of demo memes, to try memeseeks without a collection of your own.
 
   python scripts/demo_memes.py OUT_DIR [--cache DIR]
 

@@ -17,7 +17,7 @@
 
 ![首页：今日一梗和我的图集](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 
-<sub>截图里的梗图是为本项目做的示例：文字、账号和聊天都是编的，照片来自 Wikimedia Commons 上标为 CC0 或公有领域的作品，由 `scripts/demo_memes.py` 生成。</sub>
+<sub>截图里的梗图来自网络（多是小红书上的转载，图上的水印原样保留），版权归原作者所有，这里只用来演示软件。如果其中有你的作品、希望撤下，请[开一个 issue](https://github.com/tactino/memeseeks/issues)，我们会尽快替换。</sub>
 
 ## 安装
 
@@ -56,7 +56,7 @@ macOS / Linux 上对应的是在 `sh` 前面加 `MEMESEEKS_DIR=…`、`MEMESEEKS
 
 打开后先把梗图放进来。可以在任意图集页点「上传」，也可以直接把图片拖进页面；还可以在「设置 → 来源文件夹」里添加电脑上已有的梗图文件夹。放进来的新图会在后台建立索引，页头会显示进度。在笔记本 CPU 上每张大约 3.5 秒，1000 张大约一小时，以后只处理新增的图。
 
-![搜「上班」，捕到 6 张](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
+![搜「可爱的小动物」，捕到 4 张：图里并没有这几个字](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
 
 - **搜索**：输入你记得的话，比如「上班的时候想下班」。把握大的结果排在前面，其余的折叠在「可能相关」里。
 - **图集**：有「全部」「我喜欢」和你自己建的图集。在梗图页点「加入图集」；在任意图集页点「上传」，或者把图片拖进页面。

@@ -17,7 +17,7 @@ Your memes and their index stay on your own computer: nothing is uploaded, no ac
 
 ![The home page: today's meme and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 
-<sub>The memes in the screenshots were made for this project: the captions, accounts and chats are invented, and the photos are works marked CC0 or public domain on Wikimedia Commons; `scripts/demo_memes.py` makes them.</sub>
+<sub>The memes in the screenshots were found online (mostly reposts on Xiaohongshu; their watermarks are left as they were). They belong to their creators and are shown only to demonstrate the software. If one of them is yours and you would like it taken down, please [open an issue](https://github.com/tactino/memeseeks/issues) and we will replace it.</sub>
 
 ## How it finds memes
 
@@ -112,7 +112,7 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 ### The web app
 
-![Searching 上班 (going to work): six confident matches](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
+![Searching 可爱的小动物 (cute little animals): four confident matches, none of which says those words](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
 
 It is a personal meme collection, a little like a music app is for songs:
 
