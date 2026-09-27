@@ -52,7 +52,7 @@ def test_evaluate_scores_routes_and_hybrid(tmp_path):
     csv_path.write_text("q,f\n猫,cat.png\n狗,dog.png\n红色的,cat.png\n", encoding="utf-8-sig")
     result = Searcher(lib, models).evaluate(csv_path)
     assert result["n_queries"] == 3 and result["scores"]["hybrid"]["recall@5"] == 1.0
-    assert set(result["scores"]) == {"ocr", "clip", "hybrid"}
+    assert set(result["scores"]) == {"ocr", "lex", "clip", "hybrid"}  # each route, then fused
 
 
 def test_eval_reports_a_name_that_exists_in_two_sources(tmp_path):

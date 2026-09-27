@@ -188,6 +188,14 @@ has, over ssh (`remote.py`), and saves where: from then on every update of the l
 not tidied yet, and deletes them there once their results are back. When that computer is off, the library
 still updates; the memes go next time.
 
+## Search
+
+A meme's text is matched two ways, and the image a third (Chinese-CLIP, which only orders results). By meaning:
+BGE-M3 vectors of its own words, a confident match at cosine 0.57. As written: how much of the query's wording
+its text contains (`lexical.py`), a confident match at 0.8, so a word the meme says finds it however short the
+query. The rankings are fused (reciprocal rank fusion); confident matches come first and the rest fold into
+可能相关 (`experiments/results/maintext.md`, `lexical.md`).
+
 ## First run
 
 The server listens at once; the models load behind it (`warmup.py`). On the first run that means
