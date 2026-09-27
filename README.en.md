@@ -2,18 +2,11 @@
 
 [中文](README.md)
 
-**Thousands of memes saved, and the one you want to send is nowhere to be found?**
+Save enough memes and the one you want is never there when you need it. memeseeks is for that: search for whatever you remember of what the picture says; roughly is fine. Search 可爱的小动物 ("cute little animals") and it finds the hedgehog, Pop Cat and the kitten, though none of them says 小动物 (little animal).
 
-memeseeks is your private meme library. Remember a line from the picture, or just roughly what it said ("mom caught me up at 2 am", "where did my salary go"), and search brings it back.
+It is somewhere to keep them, too: albums, likes, and a full-screen mode to scroll through them. When you come across a good one on Tieba, Xiaohongshu or Douban, one click saves it.
 
-- **Search by memory**: the text in every image is read for you and matched by meaning, not letter for letter; Chinese (simplified or traditional) and English.
-- **Collect as you browse**: one click saves the memes on a Tieba, Xiaohongshu or Douban page; or drop images into the page, or upload from your phone's photos.
-- **Keep them sorted**: albums like playlists, and 我喜欢 for favourites; every meme has a permanent number and remembers where it came from.
-- **Browse**: full screen, one after another; the home page brings back one meme a day, and the ones you had forgotten.
-
-Your memes and their index stay on your own computer: nothing is uploaded, no account needed. Searching the web is optional and off by default. Free and open source (MIT).
-
-**Status:** v0.3 — one-line install on Windows, macOS and Linux; use it from your phone on the same Wi-Fi.
+Everything stays on your computer: nothing is uploaded and there is no account. Open source (MIT). This is v0.3; one command installs it on Windows, macOS or Linux, and your phone can use it over the same Wi-Fi.
 
 ![The home page: today's meme and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 
@@ -112,7 +105,7 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 ### The web app
 
-![Searching 可爱的小动物 (cute little animals): four confident matches, none of which says those words](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
+![Searching 可爱的小动物 (cute little animals): four confident matches, none of which says 小动物](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
 
 It is a personal meme collection, a little like a music app is for songs:
 
