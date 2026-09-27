@@ -8,7 +8,7 @@ Describe what you remember about a meme, get it back from your own collection. W
 
 ![The home page: today's meme and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 
-<sub>The memes in the screenshots are demo images drawn by `scripts/demo_memes.py`.</sub>
+<sub>The demo memes in the screenshots are public-domain paintings (from Wikimedia Commons) under captions written for this project, made by `scripts/demo_memes.py`.</sub>
 
 ## How it finds memes
 
@@ -103,7 +103,7 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 ### The web app
 
-![Searching 睡觉 (sleep): four confident matches](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
+![Searching 上班 (going to work): five confident matches](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
 
 It is a personal meme collection, a little like a music app is for songs:
 
