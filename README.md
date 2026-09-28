@@ -20,7 +20,14 @@
 
 ## 安装
 
-**Windows**：打开 PowerShell，运行：
+**Windows**：下载 [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe)（约 200 MB），双击安装。
+
+- 可以选装在哪个盘，也可以分别指定图库和模型放在哪；不需要管理员权限。已经下载过模型的话，选那个文件夹就不用再下。
+- 安装包还没有数字签名，Windows 可能提示「Windows 已保护你的电脑」：点「更多信息」，再点「仍要运行」。
+- 装好后迷因捕手在屏幕右下角的通知区域运行：点那只猫打开，右键可以退出。第一次启动会下载约 3.9 GB 的模型，网页上能看到进度。
+- 卸载：在 Windows「设置 → 应用」里找到「迷因捕手」。你的图库不会被删除。
+
+**用一行命令安装**（Windows 也可以这样装）。Windows 上打开 PowerShell，运行：
 
 ```powershell
 irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1 | iex

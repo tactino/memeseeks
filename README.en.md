@@ -32,7 +32,14 @@ On the maintainer's text-heavy collection the first two routes already find ever
 
 ## Install
 
-**Windows** — open PowerShell and run:
+**Windows** — download [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe) (about 200 MB) and double-click it.
+
+- Choose where the program, your library and the models go; no administrator needed. Models you already downloaded can be used as they are.
+- The installer is not signed yet, so Windows may say "Windows protected your PC": click "More info", then "Run anyway".
+- memeseeks then runs in the notification area: click the cat to open it, right-click to quit. The first start downloads about 3.9 GB of models, with the progress shown in the web app.
+- To uninstall, find 迷因捕手 under Settings → Apps. Your library is kept.
+
+**With one command** (Windows too) — on Windows, open PowerShell and run:
 
 ```powershell
 irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1 | iex
