@@ -12,3 +12,6 @@ label.html
 docs/superpowers/
 /build/
 /dist/
+
+# the Windows installer build (installer/windows/build.ps1)
+installer/windows/build/

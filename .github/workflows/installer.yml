@@ -1,0 +1,51 @@
+name: installer
+
+# The Windows installer from the current commit, to try before a release: gh workflow run installer
+# (A release builds it too, and puts it on the release: release.yml.)
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      wheel-artifact:
+        type: string
+        default: ""
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        if: inputs.wheel-artifact != ''
+        with:
+          name: ${{ inputs.wheel-artifact }}
+          path: dist/
+      - uses: astral-sh/setup-uv@v6
+      - name: Inno Setup
+        shell: pwsh
+        run: if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: build the installer
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem dist/*.whl -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($wheel) { ./installer/windows/build.ps1 -Wheel $wheel.FullName } else { ./installer/windows/build.ps1 }
+      - name: install it silently, check it runs, uninstall it
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "memeseeks app"
+          $lib = Join-Path $env:RUNNER_TEMP "memeseeks library"
+          $setup = Start-Process installer/windows/build/memeseeks-windows-setup.exe -Wait -PassThru `
+            -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/TASKS=""""", "/DIR=""$dir""", "/LIBRARY=""$lib"""
+          if ($setup.ExitCode -ne 0) { throw "setup exited with $($setup.ExitCode)" }
+          $config = Get-Content (Join-Path $dir "launcher.json") -Raw -Encoding utf8 | ConvertFrom-Json
+          if ($config.library -ne $lib) { throw "launcher.json has library $($config.library)" }
+          & (Join-Path $dir "python\python.exe") -c "import memeseeks, memeseeks.tray, torch, transformers; print('memeseeks', memeseeks.__version__)"
+          if ($LASTEXITCODE -ne 0) { throw "the installed app does not import" }
+          $un = Start-Process (Join-Path $dir "unins000.exe") -Wait -PassThru -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES"
+          Start-Sleep -Seconds 3
+          if (Test-Path (Join-Path $dir "python")) { throw "uninstalling left the program behind" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: installer/windows/build/memeseeks-windows-setup.exe
+          retention-days: 14

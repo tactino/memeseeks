@@ -1,7 +1,8 @@
 name: release
 
-# Push a tag like v0.3.0: build, check the version matches, publish to PyPI (trusted publishing: no token
-# stored here), and make a GitHub release whose notes are that version's section of CHANGELOG.md.
+# Push a tag like v0.3.0: build, check the version matches, build and try the Windows installer, publish to PyPI
+# (trusted publishing: no token stored here), and make a GitHub release, with the installer, whose notes are that
+# version's section of CHANGELOG.md.
 on:
   push:
     tags: ["v*"]
@@ -30,8 +31,14 @@ jobs:
           name: dist
           path: dist/
 
-  pypi:
+  windows:  # the installer, installed and uninstalled once before anything is published
     needs: build
+    uses: ./.github/workflows/installer.yml
+    with:
+      wheel-artifact: dist
+
+  pypi:
+    needs: [build, windows]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -53,6 +60,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: dist
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
           path: dist/
       - name: notes from CHANGELOG.md
         run: |
