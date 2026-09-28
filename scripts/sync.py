@@ -65,7 +65,24 @@ def check_source(root: Path) -> None:
         sys.exit(f"refusing to push {root}: missing or empty")
 
 
+def git_files(root: Path) -> list[str] | None:
+    """Tracked and not-ignored files, or None outside a git checkout: build output and caches stay behind."""
+    try:
+        out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                             capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return sorted({f for f in out.decode("utf-8").split("\0") if f})
+
+
 def iter_files(root: Path, exclude_dirs: set[str]):
+    listed = git_files(root) if (root / ".git").exists() else None
+    if listed is not None:
+        for rel in listed:
+            path = root / rel
+            if path.is_file() and path.name not in LOCAL_ONLY and not set(Path(rel).parts) & exclude_dirs:
+                yield path, rel
+        return
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(d for d in dirnames if d not in exclude_dirs and not d.endswith(".egg-info"))
         for name in sorted(f for f in filenames if f not in LOCAL_ONLY):  # local settings stay local

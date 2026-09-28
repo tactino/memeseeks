@@ -129,3 +129,14 @@ def test_find_leaks_matches_whole_words_only():
     from scripts.privacy import find_leaks
     texts = {"a.md": "the alice box", "b.py": "malice aforethought", "c.txt": "zip 90210"}
     assert find_leaks(texts, {"alice", "90210"}) == {"a.md": ["alice"], "c.txt": ["90210"]}
+
+
+def test_a_checkout_sends_only_what_git_would_keep(tmp_path):
+    import subprocess
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / ".gitignore").write_text("build/\n", encoding="utf-8")
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build" / "python.exe").write_bytes(b"big")  # an installer build: never shipped to the box
+    (tmp_path / "new.py").write_text("x", encoding="utf-8")  # not committed yet, still sent
+    (tmp_path / ".env").write_text("TOKEN=x", encoding="utf-8")
+    assert [rel for _, rel in iter_files(tmp_path, {".git"})] == [".gitignore", "new.py"]
