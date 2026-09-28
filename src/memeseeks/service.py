@@ -213,7 +213,9 @@ class LibraryService:
     def album(self, cid: str, sort: str = "new") -> dict:
         s = self.searcher()
         name, ids = self._album_ids(s, cid, sort)
-        return {"id": cid, "name": name, "count": len(ids), "items": [self._item(s, i) for i in ids]}
+        # put in before they were indexed (an imported 图集): removing a meme takes it out of every 图集
+        waiting = 0 if cid == "all" else sum(it["id"] not in s.paths for it in self.albums.get(cid)["items"])
+        return {"id": cid, "name": name, "count": len(ids), "waiting": waiting, "items": [self._item(s, i) for i in ids]}
 
     # ---------- 刷梗 ----------
 

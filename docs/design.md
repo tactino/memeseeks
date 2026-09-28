@@ -58,6 +58,8 @@ Everything is in the library folder, as small JSON files written atomically, eac
 
 A 图集 holds image ids, not copies: a meme in five 图集 is stored once. Deleting a 图集 never deletes memes.
 
+A 图集 is shared as a file, not a link (a link would need a server keeping everyone's memes): 分享 downloads `<name>.memeseeks.zip`, the memes byte for byte and where they were collected, never a path on your computer (`share.py`). Dropping it on the page, or 导入图集, stores the memes the way uploads are (one you already have is not stored twice and keeps its own sources), skips 待确认, and makes a 图集 of that name, with （分享） after it if yours already has one. Until the new ones are indexed the 图集 says so rather than looking empty.
+
 ## Settings
 
 Kept to what changes the experience; each has a sensible default.

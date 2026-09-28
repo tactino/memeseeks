@@ -99,9 +99,19 @@ class Inbox:
                 status = "added"
             source = clean_meta(meta or {})
             if source:
-                with (self.library.root / PROVENANCE_FILE).open("a", encoding="utf-8") as f:
-                    f.write(json.dumps({"id": image_id, "at": self.clock(), **source}, ensure_ascii=False) + "\n")
+                self._write_source(image_id, source)
         return {"id": image_id, "status": status}
+
+    def note_source(self, image_id: str, meta: dict) -> None:
+        """Record another place a meme came from (a shared 图集 carries where it was collected)."""
+        source = clean_meta(meta)
+        if source:
+            with self._lock:
+                self._write_source(image_id, source)
+
+    def _write_source(self, image_id: str, source: dict) -> None:
+        with (self.library.root / PROVENANCE_FILE).open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"id": image_id, "at": self.clock(), **source}, ensure_ascii=False) + "\n")
 
 
 def read_provenance(library_root: Path) -> dict[str, list[dict]]:

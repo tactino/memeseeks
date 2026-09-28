@@ -6,7 +6,7 @@ memeseeks is a free, open-source app for collecting memes and finding them again
 
 - Search the text in every meme by meaning, not word for word; Chinese (simplified and traditional) and English
 - One-click collecting while you browse, with dedicated support for Baidu Tieba, Xiaohongshu and Douban
-- Albums, favorites, and a record of where each meme came from
+- Albums, favorites, and a record of where each meme came from; share an album as a file that anyone can import
 - Full-screen browsing, a meme of the day, and similar memes
 - Phone access over your local network with a QR code
 - Stored locally, no account required; web search is optional and off by default

@@ -9,6 +9,7 @@ import hmac
 import io
 import json
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -21,6 +22,7 @@ from .library import LibraryError
 from .review import ReviewError
 from .search import EmptyLibrary
 from .settings import SettingsError
+from .share import MAX_PACKAGE_BYTES, ShareError, export_album, import_album
 
 WEB = Path(__file__).parent / "web"
 USERSCRIPT = Path(__file__).parent / "browser" / "memeseeks.user.js"
@@ -230,6 +232,13 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
     async def album_create(request: Request):
         return service.albums.create((await _json_body(request)).get("name"))
 
+    @app.get("/api/albums/{cid}/export")
+    def album_export(cid: str):
+        name, data = export_album(service, cid)
+        filename = f"{name}.memeseeks.zip"
+        return Response(data, media_type="application/zip", headers={
+            "Content-Disposition": f"attachment; filename=\"album.memeseeks.zip\"; filename*=UTF-8''{quote(filename)}"})
+
     @app.get("/api/albums/{cid}")
     def album(cid: str, sort: str = Query("new", pattern="^(new|old)$")):
         found = service.album(cid, sort=sort)
@@ -277,6 +286,22 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
         return service.settings.update(await _json_body(request))
 
     if inbox is not None:
+        @app.post("/api/albums/import")
+        async def album_import(request: Request):
+            # a zip body only: like JSON and images, a page on another site cannot send that here
+            ctype = request.headers.get("content-type", "").split(";")[0].strip()
+            if ctype not in ("application/zip", "application/x-zip-compressed"):
+                raise HTTPException(415, "send the .memeseeks.zip file itself")
+            if int(request.headers.get("content-length") or 0) > MAX_PACKAGE_BYTES:
+                raise HTTPException(413, "图集文件太大")
+            try:
+                found = import_album(service, inbox, await request.body())
+            except ShareError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            if found["added"] and indexer is not None:
+                indexer.request()
+            return found
+
         @app.post("/api/upload")
         async def upload(request: Request, album: str | None = None):
             # an image body only (image/*): like JSON, a page on another site cannot send that here

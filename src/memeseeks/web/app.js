@@ -127,8 +127,10 @@ const IMAGE_NAME = /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i;
 let uploadTarget = null;  // the 图集 on screen, if any: uploads go into it
 
 async function upload(files, album) {
+  const shared = [...files].filter((f) => /\.zip$/i.test(f.name));  // a 图集 someone shared (share.py)
+  for (const f of shared) await importAlbum(f);
   const images = [...files].filter((f) => f.type.startsWith("image/") || IMAGE_NAME.test(f.name));
-  if (!images.length) { toast("这些不是图片", true); return; }
+  if (!images.length) { if (!shared.length) toast("这些不是图片", true); return; }
   const path = `/api/upload${album ? `?album=${encodeURIComponent(album.id)}` : ""}`;
   let added = 0, had = 0;
   const failed = [];
@@ -145,6 +147,23 @@ async function upload(files, album) {
   toast(parts.filter(Boolean).join("；"), failed.length > 0);
   if (added) watchReady();  // the bar shows the indexing; the page refreshes when it is done
   else if (had && album) render({ slide: false });
+}
+
+async function importAlbum(file) {
+  toast(`正在导入 ${file.name}`);
+  try {
+    const r = await request("POST", "/api/albums/import", new Blob([file], { type: "application/zip" }));
+    const parts = [`已导入图集「${r.album.name}」`, r.added && `新图 ${r.added} 张`, r.duplicate && `${r.duplicate} 张本来就在图库里`];
+    toast(parts.filter(Boolean).join("，"));
+    if (r.added) watchReady();
+    go(`?view=album&id=${r.album.id}`);
+  } catch (err) { toast(`导入失败：${err.message}`, true); }
+}
+
+function importButton() {
+  const input = h("input", { type: "file", accept: ".zip,application/zip" });
+  input.addEventListener("change", () => { if (input.files[0]) importAlbum(input.files[0]); input.value = ""; });
+  return h("label.btn.upload", { title: "分享来的 .memeseeks.zip 文件，也可以直接拖进页面" }, "导入图集", input);
 }
 
 function uploadButton(album) {
@@ -444,7 +463,7 @@ async function memePage({ id }) {
 async function albumsPage() {
   document.title = "图集 · 迷因捕手";
   const albums = await api("/api/albums");
-  return [h("div.results-head", {}, h("h1.page-title", { text: "图集" })),
+  return [h("div.results-head", {}, h("h1.page-title", { text: "图集" }), importButton()),
     h("div.albums", {}, albums.map(albumCard), newAlbumTile((a) => go(`?view=album&id=${a.id}`)))];
 }
 
@@ -457,6 +476,9 @@ async function albumPage({ id, sort }) {
   const tools = h("div.tools", {}, h("span.seg", {},
     h("a", { href: `?view=album&id=${id}&sort=new`, "aria-current": String(sort !== "old"), text: "最新" }),
     h("a", { href: `?view=album&id=${id}&sort=old`, "aria-current": String(sort === "old"), text: "最早" })), uploadButton(target));
+  if (id !== "all") tools.append(h("a.btn.quiet", { href: `/api/albums/${encodeURIComponent(id)}/export`, download: "",
+    title: "导出成一个文件，传给别的迷因捕手，拖进去就能导入", text: "分享",
+    onclick: () => toast("已导出。把文件传过去，拖进迷因捕手就能导入") }));
   if (id !== "all" && id !== "liked") {
     tools.append(
       h("button.btn.quiet", { type: "button", text: "重命名", onclick: () => {
@@ -479,13 +501,16 @@ async function albumPage({ id, sort }) {
   const feedOrder = last.at && last.order === "shuffle" ? "shuffle" : sort === "old" ? "old" : "new";
   if (a.items.length) tools.prepend(h("a.btn.primary", { href: `?${qs({ view: "feed", album: id, order: feedOrder })}`, text: "刷梗" }));
   const head = h("div.album-head", {}, h("div", {}, title, h("div.meta", { text: `${a.count} 张` })), tools);
+  const waiting = a.waiting ? h("p.notice", { text: `还有 ${a.waiting} 张图正在建立索引，建好后就会出现在这里。` }) : null;
+  if (waiting) watchReady();  // the page refreshes when indexing is done
+  if (!a.items.length && waiting) return [head, blank(1, "正在建立索引", waiting.textContent)];
   if (!a.items.length) {
     const tip = id === "liked" ? ["还没有喜欢的梗图", "在梗图页点「喜欢」，它就会出现在这里。"]
       : id === "all" ? ["图库还是空的", "点「上传」，或者直接把图片拖进这个页面。"]
       : ["这个图集还是空的", "在梗图页点「加入图集」把图放进来，或者直接上传。"];
     return [head, blank(1, ...tip)];
   }
-  return [head, grid(a.items)];
+  return [head, waiting, grid(a.items)];
 }
 
 async function reviewPage() {
@@ -1024,7 +1049,7 @@ async function render({ back = false, slide = true } = {}) {
     frame();
     if (leavePage) leavePage();
     leavePage = leave;
-    view.replaceChildren(...[].concat(nodes));
+    view.replaceChildren(...[].concat(nodes).filter((n) => n != null));  // a page may leave a slot empty
     window.scrollTo(0, 0);
     if (back && flying) {  // back from a meme: its picture flies home into its card
       const img = view.querySelector(`a.card[href$="id=${flying}"] img`);
