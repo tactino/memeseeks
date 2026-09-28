@@ -73,6 +73,10 @@ macOS / Linux 上对应的是在 `sh` 前面加 `MEMESEEKS_DIR=…`、`MEMESEEKS
 
 在运行它的电脑上，还可以从浏览器菜单把它装成一个应用。
 
+![梗图页：图中文字、认出的梗名、出处和所在图集](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/meme.png)
+
+![设置页：夜间主题](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/settings.png)
+
 ### 在手机上用
 
 ![手机上的梗图页、刷梗和图集](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/phone.png)
@@ -85,6 +89,8 @@ macOS / Linux 上对应的是在 `sh` 前面加 `MEMESEEKS_DIR=…`、`MEMESEEKS
 - 高级用法：也可以用 `memeseeks serve --host 0.0.0.0 --token <一串足够长的口令>` 启动，自己管理口令。
 
 ### 从社区采集梗图
+
+![在网页上点猫头，勾选这一页的图，放进图集](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/collect.png)
 
 浏览器脚本会在你看的网页上放一只猫。点它，它会列出这一页的图；你勾选的图会连同网站名、帖子链接和标题一起进你的图库，大约一分钟后就能搜到。
 
