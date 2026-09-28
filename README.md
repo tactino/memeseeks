@@ -23,6 +23,7 @@
 **Windows**：下载 [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe)（约 200 MB），双击安装。
 
 - 可以选装在哪个盘，也可以分别指定图库和模型放在哪；不需要管理员权限。已经下载过模型的话，选那个文件夹就不用再下。
+- 双击后可能要等十几秒才出现安装界面：Windows 第一次运行它之前要先检查整个文件，不用重复点。
 - 安装包还没有数字签名，Windows 可能提示「Windows 已保护你的电脑」：点「更多信息」，再点「仍要运行」。
 - 装好后迷因捕手在自己的窗口里打开，不用浏览器。关掉窗口它还在屏幕右下角运行，点那只猫就回来；右键可以退出，或者改在浏览器里打开。第一次启动会下载约 3.9 GB 的模型，窗口里能看到进度。
 - 卸载：在 Windows「设置 → 应用」里找到「迷因捕手」。你的图库不会被删除。

@@ -35,6 +35,7 @@ On the maintainer's text-heavy collection the first two routes already find ever
 **Windows** — download [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe) (about 200 MB) and double-click it.
 
 - Choose where the program, your library and the models go; no administrator needed. Models you already downloaded can be used as they are.
+- It may take ten seconds or more before the installer shows up: Windows checks the whole file the first time it runs. No need to click again.
 - The installer is not signed yet, so Windows may say "Windows protected your PC": click "More info", then "Run anyway".
 - memeseeks opens in a window of its own, no browser needed. Closing the window leaves it running in the notification area: click the cat to bring it back, right-click to quit or to open it in the browser instead. The first start downloads about 3.9 GB of models, with the progress shown in the window.
 - To uninstall, find 迷因捕手 under Settings → Apps. Your library is kept.
