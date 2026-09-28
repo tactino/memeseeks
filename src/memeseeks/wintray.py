@@ -28,6 +28,19 @@ FIRST_ITEM = 1000
 CLASS_NAME = "memeseeks-tray"
 
 
+_mutex = None
+
+
+def first_instance(name: str) -> bool:
+    """Whether no other process holds this name: two quick clicks must not start two servers, which then fight
+    over the model downloads' locks and neither loads. The name is held until the process ends."""
+    global _mutex
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+    _mutex = kernel32.CreateMutexW(None, False, name)
+    return ctypes.get_last_error() != 183  # ERROR_ALREADY_EXISTS
+
+
 class WNDCLASSW(ctypes.Structure):
     _fields_ = [("style", wintypes.UINT), ("lpfnWndProc", WNDPROC), ("cbClsExtra", ctypes.c_int),
                 ("cbWndExtra", ctypes.c_int), ("hInstance", wintypes.HINSTANCE), ("hIcon", wintypes.HICON),

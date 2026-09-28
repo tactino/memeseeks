@@ -27,3 +27,18 @@ def test_the_mirror_is_asked_for_only_when_the_models_still_need_downloading_and
     env = {"HF_HOME": str(tmp_path / "empty"), "HF_ENDPOINT": "https://example.org"}
     choose_mirror(env, reachable=lambda: False)
     assert env["HF_ENDPOINT"] == "https://example.org"  # yours wins
+
+
+def test_a_second_start_finds_the_name_taken():
+    import sys
+    import uuid
+
+    import pytest
+
+    if sys.platform != "win32":
+        pytest.skip("the name is a Windows mutex")
+    from memeseeks.wintray import first_instance
+
+    name = f"Local\\memeseeks-test-{uuid.uuid4().hex}"
+    assert first_instance(name) is True
+    assert first_instance(name) is False  # held by this process now: a second start would give way

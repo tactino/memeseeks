@@ -85,7 +85,14 @@ def main(argv=None) -> int:
     from .cli import _answers, _serve
     from .library import Library, Models, default_home
 
-    if _answers(url):  # already running: a second click just opens it
+    if sys.platform == "win32":
+        from .wintray import first_instance
+
+        if not first_instance(f"Local\\memeseeks-tray-{args.port}"):  # already starting or running
+            if _answers(url):  # it opens the browser itself once it is up
+                webbrowser.open(url)
+            return 0
+    if _answers(url):  # already running (started some other way): a second click just opens it
         webbrowser.open(url)
         return 0
     home = default_home()
