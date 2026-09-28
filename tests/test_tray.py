@@ -1,4 +1,4 @@
-from memeseeks.tray import apply_config, choose_mirror, models_missing, read_config
+from memeseeks.tray import apply_config, choose_mirror, models_missing, opener, read_config
 
 
 def test_the_installers_launcher_json_says_where_the_library_and_models_are(tmp_path):
@@ -42,3 +42,12 @@ def test_a_second_start_finds_the_name_taken():
     name = f"Local\\memeseeks-test-{uuid.uuid4().hex}"
     assert first_instance(name) is True
     assert first_instance(name) is False  # held by this process now: a second start would give way
+
+
+def test_a_double_click_opens_the_web_app_once():
+    now, opened = [0.0], []
+    click = opener("http://127.0.0.1:8765/", open_url=opened.append, clock=lambda: now[0])
+    click(); now[0] += 0.3; click()  # a double click arrives as two clicks
+    assert len(opened) == 1
+    now[0] += 5; click()
+    assert len(opened) == 2

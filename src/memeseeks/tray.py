@@ -57,6 +57,21 @@ def choose_mirror(env=os.environ, reachable=None) -> None:
         env["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 
+def opener(url: str, open_url=webbrowser.open, clock=None, within: float = 2.0):
+    """Opens the web app, once for a double click (Windows sends a double click as two clicks)."""
+    import time
+
+    clock = clock or time.monotonic
+    last = [None]
+
+    def open_once() -> None:
+        now = clock()
+        if last[0] is None or now - last[0] >= within:
+            last[0] = now
+            open_url(url)
+    return open_once
+
+
 def _huggingface_answers() -> bool:
     import urllib.request
 
@@ -111,7 +126,7 @@ def main(argv=None) -> int:
     hinted = Path(home) / ".tray-hinted"  # say once where it went, since it has no window
     hint = None if hinted.exists() else ("迷因捕手在这里", "点这只猫打开；右键可以退出。")
     hinted.touch()
-    Tray(icon, "迷因捕手", [("打开迷因捕手", lambda: webbrowser.open(url)), ("退出", None)], hint=hint).run()
+    Tray(icon, "迷因捕手", [("打开迷因捕手", opener(url)), ("退出", None)], hint=hint).run()
     os._exit(0)  # 退出: the server thread and the indexer stop with the process, as closing the old window did
 
 
