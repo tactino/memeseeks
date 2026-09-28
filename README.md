@@ -62,7 +62,7 @@ macOS / Linux 上对应的是在 `sh` 前面加 `MEMESEEKS_DIR=…`、`MEMESEEKS
 
 打开后先把梗图放进来。可以在任意图集页点「上传」，也可以直接把图片拖进页面；还可以在「设置 → 来源文件夹」里添加电脑上已有的梗图文件夹。放进来的新图会在后台建立索引，页头会显示进度。在笔记本 CPU 上每张大约 3.5 秒，1000 张大约一小时，以后只处理新增的图。
 
-![搜「可爱的小动物」，捕到 4 张，图上都没写「小动物」](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
+![搜「可爱的小动物」，捕到 4 张，图上都没写「小动物」](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.webp)
 
 - **搜索**：输入你记得的话，比如「上班的时候想下班」。把握大的结果排在前面，其余的折叠在「可能相关」里。
 - **图集**：有「全部」「我喜欢」和你自己建的图集。在梗图页点「加入图集」；在任意图集页点「上传」，或者把图片拖进页面。
@@ -81,6 +81,8 @@ macOS / Linux 上对应的是在 `sh` 前面加 `MEMESEEKS_DIR=…`、`MEMESEEKS
 
 ![手机上的梗图页、刷梗和图集](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/phone.png)
 
+![在手机上刷梗，一张接一张](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/feed.webp)
+
 在电脑上打开「设置 → 手机访问」，点「开」，再用手机相机扫出现的二维码。手机和电脑要连在同一个 Wi-Fi 上。
 
 - 二维码里带着一个口令，同一个 Wi-Fi 下只有知道口令的设备能打开你的图库。「换一个口令」会让之前扫过的手机失效。
@@ -90,7 +92,7 @@ macOS / Linux 上对应的是在 `sh` 前面加 `MEMESEEKS_DIR=…`、`MEMESEEKS
 
 ### 从社区采集梗图
 
-![在网页上点猫头，勾选这一页的图，放进图集](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/collect.png)
+![在网页上点猫头，勾选这一页的图，点「采集」，图就飞进猫嘴里](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/collect.webp)
 
 浏览器脚本会在你看的网页上放一只猫。点它，它会列出这一页的图；你勾选的图会连同网站名、帖子链接和标题一起进你的图库，大约一分钟后就能搜到。
 

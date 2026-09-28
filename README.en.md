@@ -118,7 +118,7 @@ The library lives in `~/.memeseeks` (override with `--lib DIR` or `MEMESEEKS_HOM
 
 ### The web app
 
-![Searching 可爱的小动物 (cute little animals): four confident matches, none of which says 小动物](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.png)
+![Searching 可爱的小动物 (cute little animals): four confident matches, none of which says 小动物](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/search.webp)
 
 It is a personal meme collection, a little like a music app is for songs:
 
@@ -138,11 +138,13 @@ On the computer running it (`localhost`) it also installs as an app from the bro
 
 ![On a phone: a meme's page, 刷梗 and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/phone.png)
 
+![刷梗 on a phone, one meme after another](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/feed.webp)
+
 **From your phone:** on the computer, turn on 设置 → 手机访问 and scan the QR code with the phone (both on the same Wi-Fi). The code carries a token: only devices that know it can open your library, and 换一个口令 locks out every phone that scanned the old one. Windows may ask once whether to allow network access; allow it. Over plain `http` the phone can search, 刷梗 and **save**; **copy** and **share** (and installing as an app) need HTTPS, because browsers only allow them in a secure context. (By hand instead: `memeseeks serve --host 0.0.0.0 --token <something secret>`.)
 
 ### Collecting memes from community pages
 
-![On a web page: click the cat, tick the memes, choose an album](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/collect.png)
+![On a web page: click the cat, tick the memes, click 采集, and they fly into its mouth](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/collect.webp)
 
 A userscript adds a 采集 meme button to the pages you read. Click it and it lists the images on that page; the ones you tick go into your library's inbox, together with the site, the page link and its title, and are searchable within about a minute. It has special handling for 百度贴吧 (original-size images from every floor on the page), 小红书 (all images of a note) and 豆瓣小组 (large versions of topic and reply images), and a generic mode for any other site.
 
