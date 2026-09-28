@@ -52,9 +52,9 @@ $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
 if (-not $iscc) { $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe" }
 if (-not (Test-Path $iscc)) { throw "Inno Setup 6 (ISCC.exe) not found" }
 $lang = Join-Path (Split-Path $iscc) "Languages\ChineseSimplified.isl"
-if (-not (Test-Path $lang)) {  # the Chinese translation ships with Inno Setup's source, among the unofficial ones
+if (-not (Test-Path $lang)) {  # older Inno Setups lack it; newer ones ship it: take it from their source
   $lang = Join-Path $build "ChineseSimplified.isl"
-  Invoke-WebRequest "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile $lang -UseBasicParsing
+  Invoke-WebRequest "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/ChineseSimplified.isl" -OutFile $lang -UseBasicParsing
 }
 & $iscc "/DAppVersion=$version" "/DBuildDir=$build" "/DLangFile=$lang" (Join-Path $PSScriptRoot "memeseeks.iss")
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
