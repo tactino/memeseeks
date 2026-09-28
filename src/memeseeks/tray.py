@@ -19,6 +19,7 @@ import webbrowser
 from pathlib import Path
 
 PORT = 8765
+APP_ID = "memeseeks.memeseeks"  # the taskbar's name for us; the installer's shortcuts carry the same
 MODELS = ("BAAI--bge-m3", "OFA-Sys--chinese-clip-vit-large-patch14-336px")  # the ones search needs downloaded
 
 
@@ -101,10 +102,11 @@ def main(argv=None) -> int:
     from .library import Library, Models, default_home
 
     if sys.platform == "win32":
-        from .wintray import first_instance
+        from .wintray import app_id, first_instance, wake_other
 
+        app_id(APP_ID)
         if not first_instance(f"Local\\memeseeks-tray-{args.port}"):  # already starting or running
-            if _answers(url):  # it opens the browser itself once it is up
+            if not wake_other() and _answers(url):  # it shows its window, or else the browser
                 webbrowser.open(url)
             return 0
     if _answers(url):  # already running (started some other way): a second click just opens it
@@ -115,19 +117,65 @@ def main(argv=None) -> int:
         _log_to(Path(home))
     choose_mirror()
     lib = Library(home)
+    from .appwindow import available
+
+    windowed = sys.platform == "win32" and available()
     serve = lambda: _serve(lib, Models(), "127.0.0.1", args.port, None,  # noqa: E731
-                           online=os.environ.get("MEMESEEKS_ONLINE", "off"), open_browser=True)
+                           online=os.environ.get("MEMESEEKS_ONLINE", "off"), open_browser=not windowed)
     if sys.platform != "win32":
         return serve()
     threading.Thread(target=serve, name="memeseeks-server", daemon=True).start()
     from .wintray import Tray
 
     icon = Path(__file__).parent / "web" / "icons" / "memeseeks.ico"
-    hinted = Path(home) / ".tray-hinted"  # say once where it went, since it has no window
-    hint = None if hinted.exists() else ("迷因捕手在这里", "点这只猫打开；右键可以退出。")
-    hinted.touch()
-    Tray(icon, "迷因捕手", [("打开迷因捕手", opener(url)), ("退出", None)], hint=hint).run()
-    os._exit(0)  # 退出: the server thread and the indexer stop with the process, as closing the old window did
+    hinted = Path(home) / ".tray-hinted"  # say once where it is, the first time it has no window
+    if not windowed:
+        hint = None if hinted.exists() else ("迷因捕手在这里", "点这只猫打开；右键可以退出。")
+        hinted.touch()
+        Tray(icon, "迷因捕手", [("打开迷因捕手", opener(url)), ("退出", None)], hint=hint).run()
+        os._exit(0)  # 退出: the server thread and the indexer stop with the process, as closing the old window did
+    run_windowed(url, icon, hinted, _answers)
+
+
+def run_windowed(url: str, icon: Path, hinted: Path, answers) -> None:
+    """The window on the main thread (WebView2 wants it there), the cat on a thread of its own."""
+    import time
+
+    from .appwindow import AppWindow
+    from .wintray import Tray
+
+    deadline = time.monotonic() + 60
+    while not answers(url) and time.monotonic() < deadline:  # the page needs the server up to load
+        time.sleep(0.3)
+    parts: dict = {}
+
+    def hidden() -> None:
+        if not hinted.exists() and "tray" in parts:
+            hinted.touch()
+            parts["tray"].show_hint("迷因捕手还在这里", "关掉窗口它也在右下角运行：点这只猫打开，右键可以退出。")
+
+    app = AppWindow(url, icon, storage=app_dir() / "webview-data", on_hidden=hidden)
+
+    def cat() -> None:
+        # made on this thread: a window's messages go to the thread that made it, and this one waits for them
+        parts["tray"] = Tray(icon, "迷因捕手", [("打开迷因捕手", opener(url, open_url=lambda _: app.show())),
+                                               ("在浏览器里打开", opener(url)), ("退出", None)])
+        parts["tray"].run()
+        try:
+            app.quit()  # 退出 from the cat's menu closes the window too
+        except Exception:
+            pass
+
+    tray = threading.Thread(target=cat, name="memeseeks-tray", daemon=True)
+    tray.start()
+    try:
+        app.run()
+    except Exception as exc:  # no WebView2 after all: the browser, and the cat as before
+        print(f"the window could not open ({type(exc).__name__}: {exc}); using the browser")
+        parts["tray"].items[0] = ("打开迷因捕手", opener(url))
+        webbrowser.open(url)
+        tray.join()
+    os._exit(0)
 
 
 if __name__ == "__main__":

@@ -41,6 +41,21 @@ def first_instance(name: str) -> bool:
     return ctypes.get_last_error() != 183  # ERROR_ALREADY_EXISTS
 
 
+def wake_other() -> bool:
+    """Ask the copy already running to show itself, as a click on its cat would. Whether there was one."""
+    user32.FindWindowW.restype = wintypes.HWND
+    user32.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR]
+    user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    hwnd = user32.FindWindowW(CLASS_NAME, None)
+    return bool(hwnd) and bool(user32.PostMessageW(hwnd, WM_TRAY, 0, WM_LBUTTONUP))
+
+
+def app_id(name: str) -> None:
+    """Our own taskbar identity, so the window shows as 迷因捕手 with the cat, not as Python."""
+    shell32.SetCurrentProcessExplicitAppUserModelID.argtypes = [wintypes.LPCWSTR]
+    shell32.SetCurrentProcessExplicitAppUserModelID(name)
+
+
 class WNDCLASSW(ctypes.Structure):
     _fields_ = [("style", wintypes.UINT), ("lpfnWndProc", WNDPROC), ("cbClsExtra", ctypes.c_int),
                 ("cbWndExtra", ctypes.c_int), ("hInstance", wintypes.HINSTANCE), ("hIcon", wintypes.HICON),

@@ -19,6 +19,7 @@ ml = [
   "rapidocr_onnxruntime==1.4.4",
 ]
 serve = ["fastapi>=0.110", "uvicorn>=0.29", "segno>=1.5"]
+app = ["pywebview>=6.2; sys_platform == 'win32'"]  # its own window (appwindow.py), in the Windows installer
 dev = ["pytest>=8", "httpx2", "fastapi>=0.110", "uvicorn>=0.29", "segno>=1.5"]
 
 [tool.setuptools.packages.find]

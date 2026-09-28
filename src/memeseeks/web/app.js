@@ -96,7 +96,7 @@ function connectSteps() {
   return [
     h("ol.connect", {},
       h("li", { text: "给浏览器装扩展 Violentmonkey（在 Firefox 附加组件或 Chrome 应用商店里搜 Violentmonkey）。" }),
-      h("li", {}, h("a", { href: "/api/inbox/memeseeks.user.js", text: "安装采集 meme 脚本" }), "，在弹出的页面点「确认安装」。"),
+      h("li", {}, h("a", { href: "/api/inbox/memeseeks.user.js", target: "_blank", text: "安装采集 meme 脚本" }), "，在弹出的页面点「确认安装」。"),
       h("li", { text: "在贴吧、小红书、豆瓣或任何网页上点那只猫，勾选要的图采集进来，一分钟内就能在这里搜到。" })),
     h("p.hint", { text: "脚本只在你点它时采集你正在看的这一页，不自动翻页、不在后台抓取。采集来的图是 inbox 文件夹里的普通图片文件，并记下来自哪个帖子。" })];
 }

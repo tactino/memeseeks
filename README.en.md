@@ -36,7 +36,7 @@ On the maintainer's text-heavy collection the first two routes already find ever
 
 - Choose where the program, your library and the models go; no administrator needed. Models you already downloaded can be used as they are.
 - The installer is not signed yet, so Windows may say "Windows protected your PC": click "More info", then "Run anyway".
-- memeseeks then runs in the notification area: click the cat to open it, right-click to quit. The first start downloads about 3.9 GB of models, with the progress shown in the web app.
+- memeseeks opens in a window of its own, no browser needed. Closing the window leaves it running in the notification area: click the cat to bring it back, right-click to quit or to open it in the browser instead. The first start downloads about 3.9 GB of models, with the progress shown in the window.
 - To uninstall, find 迷因捕手 under Settings → Apps. Your library is kept.
 
 **With one command** (Windows too) — on Windows, open PowerShell and run:

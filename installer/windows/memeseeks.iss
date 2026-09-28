@@ -52,9 +52,9 @@ Name: "startup"; Description: "开机时自动启动（在右下角待命）"; F
 Source: "{#BuildDir}\app\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{userprograms}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; Comment: "迷因捕手 · memeseeks"; Tasks: startmenu
-Name: "{userdesktop}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; Comment: "迷因捕手 · memeseeks"; Tasks: desktopicon
-Name: "{userstartup}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; Tasks: startup
+Name: "{userprograms}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; Comment: "迷因捕手 · memeseeks"; AppUserModelID: "memeseeks.memeseeks"; Tasks: startmenu
+Name: "{userdesktop}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; Comment: "迷因捕手 · memeseeks"; AppUserModelID: "memeseeks.memeseeks"; Tasks: desktopicon
+Name: "{userstartup}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; AppUserModelID: "memeseeks.memeseeks"; Tasks: startup
 
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; Description: "现在启动迷因捕手（第一次会下载约 3.9 GB 的模型）"; Flags: postinstall nowait skipifsilent
