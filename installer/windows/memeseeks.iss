@@ -73,7 +73,7 @@ var
   Code: Integer;
   Cmd: String;
 begin
-  { the app runs as {app}\python\pythonw.exe: stop that one only, never other Python programs }
+  // the app runs as <program folder>\python\pythonw.exe: stop that one only, never other Python programs
   Cmd := '-NoProfile -Command "Get-CimInstance Win32_Process -Filter ''Name=''''pythonw.exe'''' or Name=''''python.exe'''''' | '
     + 'Where-Object { $_.ExecutablePath -like ''' + ExpandConstant('{app}') + '\*'' } | '
     + 'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"';
@@ -97,7 +97,7 @@ end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  { the models follow the program folder unless you chose somewhere else }
+  // the models follow the program folder unless you chose somewhere else
   if (CurPageID = PlacesPage.ID) and ((PlacesPage.Values[1] = '') or (PlacesPage.Values[1] = DefaultModels)) then begin
     DefaultModels := AddBackslash(WizardDirValue()) + 'models';
     PlacesPage.Values[1] := DefaultModels;
@@ -126,7 +126,7 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  StopRunningApp();  { an update: the running copy holds its files }
+  StopRunningApp();  // an update: the running copy holds its files
   Result := '';
 end;
 
