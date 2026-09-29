@@ -15,12 +15,16 @@ import json
 import re
 import shlex
 import subprocess
+import sys
 import tarfile
+import threading
 from pathlib import Path
 
 from .index import _atomic_write_text
 
 SSH = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-o", "ServerAliveInterval=30"]
+# The app runs without a console (pythonw); a console program started from it would get a black window of its own.
+QUIET = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
 _PROGRESS = re.compile(r"^tidy: (\d+)/(\d+)$")
 
 
@@ -35,19 +39,24 @@ class Ssh:
         self.host = host
 
     def run(self, command: str, data: bytes | None = None) -> bytes:
-        result = subprocess.run([*SSH, self.host, command], input=data, capture_output=True)
+        result = subprocess.run([*SSH, self.host, command], input=data, capture_output=True,
+                                stdin=None if data is not None else subprocess.DEVNULL, **QUIET)
         if result.returncode != 0:
             raise RemoteError(self._why(result.returncode, result.stderr))
         return result.stdout
 
     def stream(self, command: str, on_line) -> None:
         """Run a command, handing each line it prints to on_line as it comes."""
-        proc = subprocess.Popen([*SSH, self.host, command], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen([*SSH, self.host, command], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, **QUIET)
+        err = bytearray()  # read alongside stdout: a chatty stderr would otherwise fill its pipe and stall ssh
+        reader = threading.Thread(target=lambda: err.extend(proc.stderr.read()), daemon=True)
+        reader.start()
         for raw in proc.stdout:
             on_line(raw.decode("utf-8", "replace").strip())
-        err = proc.stderr.read()
+        reader.join()
         if proc.wait() != 0:
-            raise RemoteError(self._why(proc.returncode, err))
+            raise RemoteError(self._why(proc.returncode, bytes(err)))
 
     def _why(self, code: int, stderr: bytes | None) -> str:
         lines = [l for l in (stderr or b"").decode("utf-8", "replace").splitlines() if l.strip()]

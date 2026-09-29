@@ -424,18 +424,30 @@
         const check = document.createElement("span");
         check.className = "check";
         el.append(img, check);
-        if (it.done) {
-          const tag = document.createElement("span");
-          tag.className = `tag ${it.done}`;
-          tag.textContent = { ok: "已采集", dup: "库里已有", fail: "没采到" }[it.done];
-          el.append(tag);
-        }
+        if (it.done) el.append(tagFor(it));
         return el;
       }));
+      paintCounts();
+    };
+    const tagFor = (it) => {
+      const tag = document.createElement("span");
+      tag.className = `tag ${it.done}`;
+      tag.textContent = { ok: "已采集", dup: "库里已有", fail: "没采到" }[it.done];
+      return tag;
+    };
+    const paintCounts = () => {
       const n = items.filter((x) => x.on && !x.done).length;
       $(".meta").textContent = `这一页 ${items.length} 张 · 已选 ${items.filter((x) => x.on).length}`;
       go.textContent = `采集（${n}）`;
       go.disabled = busy || !n;
+    };
+    const paintOne = (i) => {  // one picture's result, as it comes, without redrawing the rest
+      const el = grid.querySelector(`.item[data-i="${i}"]`);
+      if (!el) return;
+      el.classList.remove("on");
+      el.querySelector(".tag")?.remove();
+      el.append(tagFor(items[i]));
+      paintCounts();
     };
     grid.addEventListener("click", (e) => {
       const el = e.target.closest(".item");
@@ -523,21 +535,23 @@
       let lastError = "", offline = false;
       const flights = [];
       for (const [n, [it, i]] of todo.entries()) {
-        if (offline) { it.done = "fail"; it.on = false; tally.fail += 1; continue; }
+        if (offline) { it.done = "fail"; it.on = false; tally.fail += 1; paintOne(i); continue; }
         say(`正在采集第 ${n + 1} / ${todo.length} 张…`, "note");
         try {
           const status = await send(it, page, album);
           it.done = status === "added" ? "ok" : "dup";
+          it.on = false;
           tally[it.done] += 1;
           const el = grid.querySelector(`.item[data-i="${i}"]`);
-          flights.push(fly(el).then(() => { gulp(); bumpCount(); }));
+          flights.push(fly(el).then(() => { gulp(); bumpCount(); paintOne(i); }));  // marked once it is swallowed
         } catch (err) {
           it.done = "fail";
+          it.on = false;
           tally.fail += 1;
           lastError = err.message;
           offline = Boolean(err.offline);
+          paintOne(i);
         }
-        it.on = false;
         if (n < todo.length - 1 && !offline) await sleep(GAP_MS);
       }
       await Promise.all(flights);

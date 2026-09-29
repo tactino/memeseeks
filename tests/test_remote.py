@@ -1,6 +1,7 @@
 import io
 import json
 import subprocess
+import sys
 import tarfile
 
 import pytest
@@ -109,3 +110,31 @@ def test_the_command_saves_where_only_after_it_worked_and_off_forgets_it(tmp_pat
                 models=Models(ocr=FakeOcr(), clip=FakeClip(), bge=FakeBge())) == 0
     assert lib.config()["tidy_remote"] == {"host": "box", "home": "~/m"} and "tidied 2 memes" in capsys.readouterr().out
     assert main(["--lib", str(lib.root), "tidy-remote", "--off"]) == 0 and "tidy_remote" not in lib.config()
+
+
+def test_ssh_runs_without_a_window_or_the_apps_stdin(monkeypatch):
+    seen = []
+
+    def fake_run(args, **kw):
+        seen.append(kw)
+        return subprocess.CompletedProcess(args, 0, b"ok", b"")
+
+    class FakePopen:
+        def __init__(self, args, **kw):
+            import io
+            seen.append(kw)
+            self.stdout, self.stderr, self.returncode = io.BytesIO(b"tidy: 1/2\n"), io.BytesIO(b"warning " * 50000), 0
+
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "Popen", FakePopen)
+    from memeseeks.remote import Ssh
+    lines = []
+    assert Ssh("box").run("true") == b"ok"
+    Ssh("box").stream("tidy", lines.append)
+    assert lines == ["tidy: 1/2"]
+    assert all(kw.get("stdin") == subprocess.DEVNULL for kw in seen)
+    if sys.platform == "win32":  # the app runs under pythonw: no black console window for ssh
+        assert all(kw.get("creationflags", 0) & subprocess.CREATE_NO_WINDOW for kw in seen)
