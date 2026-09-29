@@ -12,7 +12,7 @@
 - 数据本地存储，无需账号；联网搜索可选，默认关闭
 - Windows、macOS、Linux 一行命令安装，另有 Docker 镜像
 
-当前版本：v0.3
+当前版本：v0.4
 
 ![首页：今日一梗和我的图集](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 

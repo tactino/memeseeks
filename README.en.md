@@ -12,7 +12,7 @@ memeseeks is a free, open-source app for collecting memes and finding them again
 - Stored locally, no account required; web search is optional and off by default
 - One-line install on Windows, macOS and Linux; a Docker image is also available
 
-Current version: v0.3
+Current version: v0.4
 
 ![The home page: today's meme and the albums](https://raw.githubusercontent.com/tactino/memeseeks/main/docs/screenshots/home.png)
 
