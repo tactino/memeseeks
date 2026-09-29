@@ -368,6 +368,29 @@ body[data-view="feed"] .bar, body[data-view="feed"] .tabbar { display: none; }
 @keyframes slide-out-back { to { opacity: 0; transform: translateX(60px); } }
 @keyframes slide-in-back { from { opacity: 0; transform: translateX(-60px); } }
 
+/* ---------- the tour (新手教程) ---------- */
+.tour { position: fixed; inset: 0; z-index: 42; }
+.tour-hole { position: fixed; pointer-events: none; box-shadow: 0 0 0 200vmax rgba(22, 20, 17, .62);
+  outline: var(--line) solid var(--accent); transition: left var(--dur) var(--ease), top var(--dur) var(--ease),
+  width var(--dur) var(--ease), height var(--dur) var(--ease); }
+.tour-hole.none { left: 50% !important; top: 50% !important; width: 0 !important; height: 0 !important; outline: 0; }
+.tour-card { position: fixed; width: min(380px, calc(100vw - 32px)); background: var(--card); color: var(--ink);
+  border: var(--line) solid var(--ink); box-shadow: var(--shadow-hard-lg); transition: left var(--dur) var(--ease), top var(--dur) var(--ease); }
+.tour-strip { display: grid; grid-template-columns: 3fr 1fr 5fr 1.3fr 2fr; height: 12px; border-bottom: var(--line) solid var(--ink); }
+.tour-strip i { border-right: var(--line) solid var(--ink); }
+.tour-strip i:last-child { border-right: 0; background: var(--accent); }
+.tour-strip i:nth-child(2) { background: var(--red); }
+.tour-strip i:nth-child(4) { background: var(--blue); }
+.tour-body { display: grid; grid-template-columns: 52px 1fr; gap: 14px; padding: 18px 20px 4px; align-items: start; }
+.tour-body .cat { width: 52px; height: 52px; }
+.tour-step { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; color: var(--muted); }
+.tour-card h2 { font-family: var(--font-serif); font-weight: 900; font-size: 20px; line-height: 1.3; margin: 2px 0 8px; }
+.tour-card p { margin: 0; font-size: 14.5px; line-height: 1.7; }
+.tour-actions { display: flex; gap: 8px; align-items: center; padding: 14px 20px 18px; }
+.tour-actions .tour-skip { margin-right: auto; }
+.tour-actions [hidden] { display: none; }
+:root[data-motion="reduced"] .tour-hole, :root[data-motion="reduced"] .tour-card { transition: none; }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 :root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
   transition: none !important; animation: none !important; }

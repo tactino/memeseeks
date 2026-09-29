@@ -550,8 +550,8 @@ async function reviewPage() {
 
 async function settingsPage() {
   document.title = "设置 · 迷因捕手";
-  const [s, sources, online, phoneFirst] = await Promise.all([api("/api/settings"), api("/api/sources"), getOnlineConfig(),
-    api("/api/phone").catch(() => ({ available: false }))]);
+  const [s, sources, online, phoneFirst, about] = await Promise.all([api("/api/settings"), api("/api/sources"), getOnlineConfig(),
+    api("/api/phone").catch(() => ({ available: false })), api("/api/about").catch(() => null)]);
   let phone = phoneFirst;
   applySettings(s);
   const choice = (key, options) => {  // [[value, label], ...]: saved and applied at once
@@ -641,7 +641,25 @@ async function settingsPage() {
       row("来源文件夹", folders, add,
         h("p.hint", { text: "这些文件夹里（包括子文件夹）的图片会被收录。原图留在原处，迷因捕手不会移动或修改它们。填的是运行迷因捕手的这台电脑上的路径。" })),
       row("手机访问", phoneBox),
-      row("连接浏览器", ...connectSteps()))];
+      row("连接浏览器", ...connectSteps()),
+      row("新手教程", h("button.btn", { type: "button", text: "再看一遍", onclick: () => go("./").then(() => Tour.start()) }),
+        h("p.hint", { text: "第一次打开时放过一遍：怎么搜、怎么放图进来、刷梗、采集和手机。" })),
+      about ? row("意见反馈", h("a.btn", { href: feedbackUrl(about), target: "_blank", rel: "noopener", text: "去 GitHub 提建议" }),
+        h("p.hint", { text: "会打开 GitHub 上新建问题的页面，只预先填好版本号和系统，你的图和搜索都不会带过去；写好、看过再提交。需要一个 GitHub 账号。" })) : null)];
+}
+
+// 意见反馈: a new GitHub issue with the version and the system filled in; nothing is sent until you submit it there
+function feedbackUrl({ version, system, feedback }) {
+  const where = [`迷因捕手 ${version}`, system, window.pywebview ? "独立窗口" : ""].filter(Boolean).join(" · ");
+  const body = `想说的（建议、问题，或者哪里不好用）：
+
+
+如果是问题，是怎么出现的：
+
+
+---
+${where}`;
+  return `${feedback}?body=${encodeURIComponent(body)}`;
 }
 
 // ---------------- the cat's eggs (docs/design.md, "The cat") ----------------
@@ -1132,6 +1150,98 @@ async function refreshReviewCount() {
   } catch (err) { $("#nav-review").hidden = true; }
 }
 
+// ---------------- the tour (新手教程, docs/design.md "First run"): once, after the entrance ----------------
+// The page dims except for the one thing a step is about; a card with the cat says what it is for. Esc or 跳过
+// ends it, the arrow keys step through it; seen or skipped, it is not shown again (设置 → 新手教程 replays it).
+const TOUR = [
+  { title: "欢迎来到迷因捕手", text: "你存过的梗图，都能用你记得的那句话找回来。花半分钟认识一下这里。" },
+  { at: ["#view .hero .search", "#bar .search"], title: "描述你记得的那张梗图",
+    text: "不用一字不差，记得大意就行；中文英文、简体繁体都能搜。把握大的排在前面，其余的折叠在「可能相关」里。" },
+  { at: [".nav a[data-tab=albums]", ".tabbar a[data-tab=albums]"], title: "把梗图放进来",
+    text: "把图片直接拖进窗口，或者在图集页点「上传」；也可以在「设置 → 来源文件夹」里加上电脑上已有的梗图文件夹。放进来的图大约一分钟后就能搜到。",
+    touch: "在图集页点「上传」，从相册里选几张；在电脑上还可以直接把图片拖进窗口，或者加上已有的梗图文件夹。放进来的图大约一分钟后就能搜到。" },
+  { at: [".nav a[data-tab=feed]", ".tabbar a[data-tab=feed]"], title: "刷梗",
+    text: "全屏一张接一张地看。在一张梗图上点大图，会接着刷和它相似的。" },
+  { at: [".nav a[data-tab=settings]", ".tabbar a[data-tab=settings]"], title: "从网页采集，在手机上看",
+    text: "在「设置 → 连接浏览器」装上采集脚本，逛贴吧、小红书、豆瓣时点一下小猫就能把图收进来；在「设置 → 手机访问」扫个码，手机上也能用。" },
+  { title: "就这些", text: "想再看一遍，去「设置 → 新手教程」。现在就放几张梗图进来吧。" },
+];
+const Tour = (() => {
+  let root = null, step = 0, onKey = null, onMove = null;
+  const visible = (el) => el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
+  function place() {
+    const s = TOUR[step], hole = root.querySelector(".tour-hole"), card = root.querySelector(".tour-card");
+    const target = (s.at || []).map((sel) => $(sel)).find(visible);
+    const pad = 6, gap = 18, edge = 16, W = innerWidth, H = innerHeight;
+    const c = card.getBoundingClientRect();
+    if (!target) {
+      hole.classList.add("none");
+      Object.assign(card.style, { left: `${(W - c.width) / 2}px`, top: `${Math.max(edge, (H - c.height) / 2)}px` });
+      return;
+    }
+    const r = target.getBoundingClientRect();
+    hole.classList.remove("none");
+    Object.assign(hole.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + 2 * pad}px`, height: `${r.height + 2 * pad}px` });
+    const below = r.bottom + pad + gap, above = r.top - pad - gap - c.height;
+    const top = below + c.height <= H - edge || above < edge ? Math.min(below, H - edge - c.height) : above;
+    const left = Math.min(Math.max(edge, r.left + r.width / 2 - c.width / 2), W - edge - c.width);
+    Object.assign(card.style, { left: `${left}px`, top: `${Math.max(edge, top)}px` });
+  }
+  function show(n) {
+    step = n;
+    const s = TOUR[step], last = step === TOUR.length - 1;
+    root.querySelector(".tour-step").textContent = `${step + 1} / ${TOUR.length}`;
+    root.querySelector(".tour-card h2").textContent = s.title;
+    root.querySelector(".tour-card p").textContent = s.touch && matchMedia("(hover: none)").matches ? s.touch : s.text;
+    root.querySelector(".tour-prev").hidden = step === 0;
+    root.querySelector(".tour-skip").hidden = last;
+    const next = root.querySelector(".tour-next");
+    next.textContent = last ? "开始用" : "下一步";
+    place();
+    next.focus({ preventScroll: true });
+  }
+  function end() {
+    if (!root) return;
+    root.remove();
+    root = null;
+    removeEventListener("keydown", onKey, true);
+    removeEventListener("resize", onMove);
+    removeEventListener("scroll", onMove, true);
+    if (!settings.tour_done) request("PUT", "/api/settings", { tour_done: true }).then(applySettings).catch(() => {});
+  }
+  function start() {
+    if (root || document.body.dataset.view === "feed") return;
+    root = h("div.tour", { role: "dialog", "aria-modal": "true", "aria-labelledby": "tour-title" },
+      h("div.tour-hole.none"),
+      h("div.tour-card", {},
+        h("div.tour-strip", { "aria-hidden": "true" }, h("i"), h("i"), h("i"), h("i"), h("i")),
+        h("div.tour-body", {}, Cat.make({}), h("div", {},
+          h("div.tour-step"), h("h2", { id: "tour-title" }), h("p"))),
+        h("div.tour-actions", {},
+          h("button.btn.quiet.tour-skip", { type: "button", text: "跳过", onclick: end }),
+          h("button.btn.tour-prev", { type: "button", text: "上一步", onclick: () => show(step - 1) }),
+          h("button.btn.primary.tour-next", { type: "button", onclick: () => (step === TOUR.length - 1 ? end() : show(step + 1)) }))));
+    document.body.append(root);
+    onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); end(); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); if (step < TOUR.length - 1) show(step + 1); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); if (step > 0) show(step - 1); }
+      else if (e.key === "Tab") {  // focus stays on the card
+        const buttons = [...root.querySelectorAll("button")].filter((b) => !b.hidden);
+        const i = buttons.indexOf(document.activeElement);
+        e.preventDefault();
+        buttons[(i + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length].focus();
+      }
+    };
+    onMove = () => { if (root) place(); };
+    addEventListener("keydown", onKey, true);
+    addEventListener("resize", onMove);
+    addEventListener("scroll", onMove, true);
+    show(0);
+  }
+  return { start, end };
+})();
+
 // ---------------- the entrance (docs/design.md, "The cat"): once per visit ----------------
 // The logo and the name appear together; the cat pops twice, opens into the logo and the bubble pops; then
 // the lockup glides to its place on the page while the page fades in. A click skips it.
@@ -1194,7 +1304,8 @@ poppable(Cat.draw($(".brand .cat")));
 Frame.draw();
 {
   const first = render();
-  if (document.documentElement.dataset.intro) intro(first);
+  const entrance = document.documentElement.dataset.intro ? intro(first) : first;
+  Promise.all([first, entrance, settingsReady]).then(() => { if (!settings.tour_done) Tour.start(); }).catch(() => {});
 }
 
 if ("serviceWorker" in navigator && window.isSecureContext) {

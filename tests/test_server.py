@@ -134,3 +134,10 @@ def test_other_sites_cannot_frame_the_app_or_sniff_its_responses(tmp_path):
         assert h["x-frame-options"] == "DENY" and "frame-ancestors 'none'" in h["content-security-policy"]
         assert h["x-content-type-options"] == "nosniff"
         assert h["referrer-policy"] == "same-origin"   # a ?token= link never reaches another site
+
+
+def test_about_says_the_version_and_system_even_before_any_meme(tmp_path):
+    from memeseeks import __version__
+    client, _ = _client(tmp_path, index=False)
+    about = client.get("/api/about").json()
+    assert about["version"] == __version__ and about["system"] and set(about) == {"version", "system", "feedback"}

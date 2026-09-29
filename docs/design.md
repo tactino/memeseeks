@@ -32,8 +32,9 @@ similar) and it is what 刷梗 continues with when started from a meme.
 - **首页**: the search box, 今日一梗, your 图集 (covers, 我喜欢 first), 旧梗重温.
 - **搜索结果**, **图集** (also 全部 and 我喜欢: name, count, 刷梗 from here, sort 最新 / 最早, rename, delete),
   **梗图** (the meme page), **刷梗** (full screen, over any page), **待确认**, **设置**.
-- Header: the logo (home), the search box, 图集, 刷梗, 待确认 (only when something waits, with its count),
-  设置. Phones: the search box on top and a bottom bar of 首页 / 图集 / 刷梗 / 设置.
+- Header: 后退 / 前进 (the app's own window has no browser buttons; greyed out when there is nowhere to go),
+  the logo (home), the search box, 图集, 刷梗, 待确认 (only when something waits, with its count), 设置.
+  Phones: the search box on top and a bottom bar of 首页 / 图集 / 刷梗 / 设置.
 
 刷梗 order: from a 图集 (or 全部, 我喜欢; its 刷梗 button) its own order, or shuffled (顺序 / 随机 inside
 刷梗); from a meme (tap its picture), the memes similar to it, then the rest shuffled; from the header, the
@@ -76,6 +77,8 @@ Kept to what changes the experience; each has a sensible default.
 | 来源文件夹 | the watched folders: add (a path on the computer running the server), remove; the collector's inbox stays |
 | 手机访问 | 关 / 开: a second server on this computer's LAN address, behind a token, shown as a QR code (and the link) on this computer only; 换一个口令; which address, when there are several. A phone sees only that it is on. Kept in the library (`phone.json`, `phone-token`) |
 | 连接浏览器 | install the collector (the steps live here, not on the home page) |
+| 新手教程 | 再看一遍: the tour again, on the home page |
+| 意见反馈 | opens a new GitHub issue with only the version and the system filled in (`/api/about`); nothing is sent until it is submitted there |
 
 Uploading is on 全部 and every 图集 page (a 上传 button; on phones it opens the photo picker) and by dropping
 files anywhere on the page; into the 图集 on screen, if any. Uploaded memes skip 待确认 (you chose them).
@@ -161,7 +164,8 @@ The nose rises and shrinks as the mouth opens and disappears at half its size (n
   fly between pages (shared elements; a card's picture grows into its meme page and shrinks back into
   the card on 返回); the frame, the header links and the phone bar stay put; the rest slides left, or right
   when going back. Uses View Transitions and falls back to an instant change. Reloading a page in place
-  (pull to refresh, new memes indexed) does not slide.
+  (pull to refresh, new memes indexed) does not slide, and neither does a change within one page: another
+  sort (最新 / 最早), another search, the same 图集 again.
 - The entrance hides the page from the first paint (the last known settings are kept in the browser for
   that) and fades it in while the lockup glides to the logo's place on the page.
 - `--dur-fast` 150 ms for feedback, `--dur` 350 ms for small moves, `--dur-slow` 550 ms for page changes;
@@ -202,13 +206,20 @@ query. The rankings are fused (reciprocal rank fusion); confident matches come f
 ## First run
 
 The server listens at once; the models load behind it (`warmup.py`). On the first run that means
-downloading them (about 3.9 GB), so a bar under the header says how far it has got, and that everything but
+downloading them (about 1 GB), so a bar under the header says how far it has got, and that everything but
 search already works; a search made meanwhile shows the loader and runs by itself once the models are in.
 If they cannot be fetched, the bar turns red and says why (from China: set `HF_ENDPOINT` to a mirror).
 
 The same bar then shows the background indexing (`正在建立索引：30 / 500 张`, step 1 reading the text, step
 2 looking at the picture), since a first folder on a CPU takes about an hour per 1,000 memes. When it is
 done, 首页, 图集 and 全部 reload their memes by themselves (unless you are typing).
+
+**The tour (新手教程).** After the entrance on a first visit, the page dims except for one thing at a time
+and a card with the cat says what it is for: welcome, the search box, putting memes in (图集), 刷梗, and
+设置 for the collector and the phone, then 就这些. The card is white with the ink border, the hard shadow
+and a Mondrian strip on top; the lit spot has a yellow outline. 跳过, 上一步, 下一步 (开始用 at the end),
+Esc and the arrow keys; phones get touch wording and point at the bottom bar. Seen or skipped, it is not
+shown again (`tour_done` in the library's settings); 设置 → 新手教程 replays it.
 
 ## The browser collector (采集 meme)
 

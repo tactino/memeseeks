@@ -8,6 +8,7 @@ import binascii
 import hmac
 import io
 import json
+import platform
 from pathlib import Path
 from urllib.parse import quote
 
@@ -432,6 +433,15 @@ def create_app(service, token: str | None = None, online=None, inbox=None, index
     @app.get("/api/rediscover")
     def rediscover(n: int = Query(12, ge=1, le=60)):
         return _with_urls(service.rediscover(n=n))
+
+    @app.get("/api/about")
+    def about():
+        """What a bug report needs to say about this copy: its version and the system, nothing of the library; and
+        where reports go (kept here: the web app's own files never name another site)."""
+        from . import __version__
+
+        return {"version": __version__, "system": f"{platform.system()} {platform.release()}".strip(),
+                "feedback": "https://github.com/tactino/memeseeks/issues/new"}
 
     @app.get("/api/status")
     def status():
