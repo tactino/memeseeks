@@ -21,9 +21,17 @@ jobs:
           name: ${{ inputs.wheel-artifact }}
           path: dist/
       - uses: astral-sh/setup-uv@v6
-      - name: Inno Setup
+      - name: Inno Setup 6.7 (the wizard's paper colour and PNG pictures need 6.6 or newer)
         shell: pwsh
-        run: if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download is-6_7_3 -R jrsoftware/issrc -p innosetup-6.7.3.exe -D $env:RUNNER_TEMP
+          $dir = Join-Path $env:RUNNER_TEMP "inno"
+          Start-Process (Join-Path $env:RUNNER_TEMP "innosetup-6.7.3.exe") -Wait `
+            -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/PORTABLE=1", "/CURRENTUSER", "/NOICONS", "/DIR=""$dir"""
+          if (-not (Test-Path (Join-Path $dir "ISCC.exe"))) { throw "Inno Setup 6.7 did not install" }
+          Add-Content $env:GITHUB_PATH $dir
       - name: build the installer
         shell: pwsh
         run: |

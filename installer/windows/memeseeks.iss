@@ -12,9 +12,15 @@
 #ifndef BuildDir
   #define BuildDir "build"
 #endif
+; a trial build (/DPreview) is another app to Windows: its own id, no shortcuts, nothing started afterwards
+#ifdef Preview
+  #define AppGuid "{{0B1D6A2E-5C3F-4A7B-8E9D-1F2A3B4C5D6E}"
+#else
+  #define AppGuid "{{6C4E2B9A-3F7D-4E1B-9C5A-7D2E8F4B1A63}"
+#endif
 
 [Setup]
-AppId={{6C4E2B9A-3F7D-4E1B-9C5A-7D2E8F4B1A63}
+AppId={#AppGuid}
 AppName=迷因捕手
 AppVersion={#AppVersion}
 AppVerName=迷因捕手 {#AppVersion}
@@ -31,7 +37,14 @@ UninstallDisplayIcon={app}\memeseeks.ico
 UninstallDisplayName=迷因捕手
 Compression=lzma2/max
 SolidCompression=yes
-WizardStyle=modern
+; the app's look (docs/design.md): warm paper, the cat, black Mondrian lines (pictures drawn by art/make.py)
+WizardStyle=modern light hidebevels includetitlebar
+WizardBackColor=#F3EFE4
+WizardImageFile=art\wizard-202.png,art\wizard-336.png,art\wizard-534.png
+WizardImageBackColor=#F3EFE4
+WizardSmallImageFile=art\small-58.png,art\small-97.png,art\small-159.png
+WizardSmallImageBackColor=#F3EFE4
+DisableWelcomePage=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
@@ -42,6 +55,13 @@ Name: "chs"; MessagesFile: "{#LangFile}"
 #else
 Name: "en"; MessagesFile: "compiler:Default.isl"
 #endif
+
+[Messages]
+WelcomeLabel1=欢迎安装迷因捕手
+WelcomeLabel2=把存过的梗图收进一个地方，以后用你记得的那句话把它找回来。%n%n不需要管理员权限，装好约占 400 MB；第一次启动时还会下载约 1 GB 的模型。
+FinishedHeadingLabel=装好了
+FinishedLabelNoIcons=迷因捕手已经装好。
+FinishedLabel=迷因捕手已经装好，开始菜单或桌面上的「迷因捕手」都能打开它。关掉窗口后它会待在屏幕右下角，点那只猫就回来。
 
 [Tasks]
 Name: "startmenu"; Description: "在开始菜单里放一个「迷因捕手」"
@@ -55,13 +75,15 @@ Type: filesandordirs; Name: "{app}\python"
 [Files]
 Source: "{#BuildDir}\app\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
+#ifndef Preview
 [Icons]
 Name: "{userprograms}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; Comment: "迷因捕手 · memeseeks"; AppUserModelID: "memeseeks.memeseeks"; Tasks: startmenu
 Name: "{userdesktop}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; Comment: "迷因捕手 · memeseeks"; AppUserModelID: "memeseeks.memeseeks"; Tasks: desktopicon
 Name: "{userstartup}\迷因捕手"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; IconFilename: "{app}\memeseeks.ico"; AppUserModelID: "memeseeks.memeseeks"; Tasks: startup
 
 [Run]
-Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; Description: "现在启动迷因捕手（第一次会下载约 3.9 GB 的模型）"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\python\pythonw.exe"; Parameters: "-m memeseeks.tray"; WorkingDir: "{app}"; Description: "现在启动迷因捕手（第一次会下载约 1 GB 的模型）"; Flags: postinstall nowait skipifsilent
+#endif
 
 [UninstallDelete]
 ; everything under the program folder, the models among it when they are there; the library never is
@@ -90,7 +112,7 @@ var
 begin
   PlacesPage := CreateInputDirPage(wpSelectDir, '图库和模型放在哪', '可以都放在 C 盘以外',
     '图库：你的图集、索引和采集来的图。卸载迷因捕手时不会删除它；已经有图库的话，选它所在的文件夹。' + #13#10 +
-    '模型：第一次启动时下载，约 3.9 GB。已经下载过的话（Hugging Face 缓存），选那个文件夹就不用再下。',
+    '模型：第一次启动时下载，约 1 GB。已经下载过的话（Hugging Face 缓存），选那个文件夹就不用再下。',
     False, '');
   PlacesPage.Add('图库：');
   PlacesPage.Add('模型：');
@@ -120,6 +142,15 @@ begin
     MsgBox('图库不能放在程序文件夹里面：卸载时程序文件夹会被整个删除。请换一个位置。', mbError, MB_OK);
     Result := False;
   end;
+end;
+
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo, MemoComponentsInfo,
+  MemoGroupInfo, MemoTasksInfo: String): String;
+begin
+  // the ready page lists the library and the models too, not only the program folder
+  Result := MemoDirInfo + NewLine + NewLine + '图库：' + NewLine + Space + PlacesPage.Values[0] + NewLine + NewLine +
+    '模型：' + NewLine + Space + PlacesPage.Values[1];
+  if MemoTasksInfo <> '' then Result := Result + NewLine + NewLine + MemoTasksInfo;
 end;
 
 procedure RegisterPreviousData(PreviousDataKey: Integer);
