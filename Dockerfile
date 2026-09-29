@@ -12,7 +12,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-RUN pip install "torch==2.11.*" "torchvision==0.26.*" --index-url https://download.pytorch.org/whl/cpu
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 RUN pip install ".[ml,serve]"

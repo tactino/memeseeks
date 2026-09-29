@@ -19,8 +19,7 @@ def test_the_mirror_is_asked_for_only_when_the_models_still_need_downloading_and
     assert "HF_ENDPOINT" not in env
     choose_mirror(env, reachable=lambda: False)
     assert env["HF_ENDPOINT"] == "https://hf-mirror.com"
-    for name in ("models--BAAI--bge-m3", "models--OFA-Sys--chinese-clip-vit-large-patch14-336px"):
-        (tmp_path / "hub" / name).mkdir(parents=True)
+    (tmp_path / "hub" / "models--tactino--memeseeks-models").mkdir(parents=True)
     env = {"HF_HOME": str(tmp_path)}
     choose_mirror(env, reachable=lambda: (_ for _ in ()).throw(AssertionError("not asked")))
     assert "HF_ENDPOINT" not in env  # everything is here already: no need to ask anyone

@@ -28,16 +28,18 @@ Every image is read in up to three ways and the results are fused (reciprocal ra
 | Picture | [Chinese-CLIP](https://github.com/OFA-Sys/Chinese-CLIP) image–text similarity | no |
 | Description (optional) | a local vision-language model ([Qwen2.5-VL-7B](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)) writes topic / punchline | yes, ~16 GB VRAM |
 
+BGE-M3 and Chinese-CLIP run as 8-bit ONNX copies ([tactino/memeseeks-models](https://huggingface.co/tactino/memeseeks-models)) on ONNX Runtime, without PyTorch: a quarter of the download, and the same search results as the originals (`experiments/results/onnx.md`).
+
 On the maintainer's text-heavy collection the first two routes already find every query in the top 5, so the description route is off by default (numbers in `experiments/results/`).
 
 ## Install
 
-**Windows** — download [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe) (about 200 MB) and double-click it.
+**Windows** — download [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe) (about SIZE MB) and double-click it.
 
 - Choose where the program, your library and the models go; no administrator needed. Models you already downloaded can be used as they are.
 - It may take ten seconds or more before the installer shows up: Windows checks the whole file the first time it runs. No need to click again.
 - The installer is not signed yet, so Windows may say "Windows protected your PC": click "More info", then "Run anyway".
-- memeseeks opens in a window of its own, no browser needed. Closing the window leaves it running in the notification area: click the cat to bring it back, right-click to quit or to open it in the browser instead. The first start downloads about 3.9 GB of models, with the progress shown in the window.
+- memeseeks opens in a window of its own, no browser needed. Closing the window leaves it running in the notification area: click the cat to bring it back, right-click to quit or to open it in the browser instead. The first start downloads about 1 GB of models, with the progress shown in the window.
 - To uninstall, find 迷因捕手 under Settings → Apps. Your library is kept.
 
 **With one command** (Windows too) — on Windows, open PowerShell and run:
@@ -52,7 +54,7 @@ irm https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.ps1
 curl -LsSf https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/install.sh | sh
 ```
 
-It installs into one folder with its own Python (Windows `%LOCALAPPDATA%\memeseeks`, macOS `~/Library/Application Support/memeseeks`, Linux `~/.local/share/memeseeks`), adds a 迷因捕手 shortcut and starts it. The first start downloads about 3.9 GB of models; the web app shows the progress. From China it switches to mirrors by itself (PyPI, Python and the models). Nothing is added to PATH; to uninstall, delete that folder and the shortcut — your library, in `~/.memeseeks`, stays. Run the same line again to update.
+It installs into one folder with its own Python (Windows `%LOCALAPPDATA%\memeseeks`, macOS `~/Library/Application Support/memeseeks`, Linux `~/.local/share/memeseeks`), adds a 迷因捕手 shortcut and starts it. The first start downloads about 1 GB of models; the web app shows the progress. From China it switches to mirrors by itself (PyPI, Python and the models). Nothing is added to PATH; to uninstall, delete that folder and the shortcut — your library, in `~/.memeseeks`, stays. Run the same line again to update.
 
 To keep everything off drive C: (or install elsewhere), on Windows:
 
@@ -69,13 +71,14 @@ Python 3.10 or newer.
 ```bash
 git clone https://github.com/tactino/memeseeks && cd memeseeks
 python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu   # or the CUDA build for your GPU
 pip install -e ".[ml,serve]"
 ```
 
-The first run downloads about 3.9 GB of models into the Hugging Face cache (`HF_HOME`); the web app is up at once and shows the progress, and search works as soon as the download is done. **From China**, set `HF_ENDPOINT=https://hf-mirror.com` before starting. Indexing on a laptop CPU takes about 3.5 s per image (roughly an hour per 1,000 memes); only new images are processed on later runs.
+For the GPU features (`--vlm`, `--tidy`), install the PyTorch build for your GPU, then `pip install -e ".[torch]"`.
 
-**Windows + Anaconda:** don't build the venv from Anaconda's Python if you use torch ≥ 2.9 — Anaconda ships an older MSVC runtime next to `python.exe` and torch fails with `WinError 1114 … c10.dll`. Use a python.org or `uv`-managed Python instead (`uv venv --managed-python --python 3.12`).
+The first run downloads about 1 GB of models into the Hugging Face cache (`HF_HOME`); the web app is up at once and shows the progress, and search works as soon as the download is done. **From China**, set `HF_ENDPOINT=https://hf-mirror.com` before starting. Indexing on a laptop CPU takes about 3.5 s per image (roughly an hour per 1,000 memes); only new images are processed on later runs.
+
+**Windows + Anaconda:** don't build the venv from Anaconda's Python if you install torch ≥ 2.9 — Anaconda ships an older MSVC runtime next to `python.exe` and torch fails with `WinError 1114 … c10.dll`. Use a python.org or `uv`-managed Python instead (`uv venv --managed-python --python 3.12`).
 
 ## Run with Docker
 
@@ -88,7 +91,7 @@ docker compose up -d
 docker compose logs -f      # wait for "memeseeks is at http://…"
 ```
 
-- The first start downloads about 3.9 GB of models into the `models` volume and indexes your folder (≈ 3.5 s per image on a laptop CPU). **Nothing listens on port 8765 until indexing has finished** — follow the logs.
+- The first start downloads about 1 GB of models into the `models` volume and indexes your folder (≈ 3.5 s per image on a laptop CPU). **Nothing listens on port 8765 until indexing has finished** — follow the logs.
 - Then open `http://<this machine's LAN address>:8765/?token=<your token>` once on each device; the browser remembers it.
 - Later starts only index new images. After updating the code run `docker compose up -d --build`; `docker compose down -v` deletes the library and the downloaded models.
 - The meme folder is mounted read-only. The container runs as uid 1000, so if you replace the `library` volume with a bind mount, make that folder writable by uid 1000.

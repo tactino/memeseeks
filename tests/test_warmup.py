@@ -44,7 +44,7 @@ def test_warmup_shows_the_download_until_the_models_are_ready(tmp_path):
     (blobs / "abc.incomplete").write_bytes(b"x" * 1000)       # a download under way
     go, started = threading.Event(), []
     service = _Service(lambda name: go.wait(5))
-    w = Warmup(service, then=lambda: started.append(True), cache=tmp_path, expected=4000)
+    w = Warmup(service, then=lambda: started.append(True), cache=tmp_path, repos={"BAAI/bge-m3": 4000})
     w.start()
     s = w.status()
     assert s["state"] == "loading" and s["download"] == {"done": 1000, "total": 4000}
@@ -58,7 +58,7 @@ def test_warmup_without_a_download_just_loads(tmp_path):
     (tmp_path / "models--BAAI--bge-m3" / "blobs").mkdir(parents=True)
     (tmp_path / "models--BAAI--bge-m3" / "blobs" / "done").write_bytes(b"x" * 4000)
     go = threading.Event()
-    w = Warmup(_Service(lambda name: go.wait(5)), cache=tmp_path, expected=4000)
+    w = Warmup(_Service(lambda name: go.wait(5)), cache=tmp_path, repos={"BAAI/bge-m3": 4000})
     w.start()
     assert w.status()["state"] == "loading" and w.status()["download"] is None
     go.set()
@@ -72,7 +72,7 @@ def test_warmup_failure_says_how_to_reach_the_models_from_china(tmp_path, monkey
         raise OSError("We couldn't connect to 'https://huggingface.co' to load the files")
 
     started = []
-    w = Warmup(_Service(offline), then=lambda: started.append(True), cache=tmp_path, expected=4000)
+    w = Warmup(_Service(offline), then=lambda: started.append(True), cache=tmp_path, repos={"BAAI/bge-m3": 4000})
     w.start()
     w.join(5)
     s = w.status()

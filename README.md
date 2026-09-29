@@ -20,12 +20,12 @@
 
 ## 安装
 
-**Windows**：下载 [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe)（约 200 MB），双击安装。
+**Windows**：下载 [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe)（约 SIZE MB），双击安装。
 
 - 可以选装在哪个盘，也可以分别指定图库和模型放在哪；不需要管理员权限。已经下载过模型的话，选那个文件夹就不用再下。
 - 双击后可能要等十几秒才出现安装界面：Windows 第一次运行它之前要先检查整个文件，不用重复点。
 - 安装包还没有数字签名，Windows 可能提示「Windows 已保护你的电脑」：点「更多信息」，再点「仍要运行」。
-- 装好后迷因捕手在自己的窗口里打开，不用浏览器。关掉窗口它还在屏幕右下角运行，点那只猫就回来；右键可以退出，或者改在浏览器里打开。第一次启动会下载约 3.9 GB 的模型，窗口里能看到进度。
+- 装好后迷因捕手在自己的窗口里打开，不用浏览器。关掉窗口它还在屏幕右下角运行，点那只猫就回来；右键可以退出，或者改在浏览器里打开。第一次启动会下载约 1 GB 的模型，窗口里能看到进度。
 - 卸载：在 Windows「设置 → 应用」里找到「迷因捕手」。你的图库不会被删除。
 
 **用一行命令安装**（Windows 也可以这样装）。Windows 上打开 PowerShell，运行：
@@ -42,7 +42,7 @@ curl -LsSf https://raw.githubusercontent.com/tactino/memeseeks/main/scripts/inst
 
 安装脚本会把程序和它自带的 Python 放进一个文件夹（Windows 是 `%LOCALAPPDATA%\memeseeks`，macOS 是 `~/Library/Application Support/memeseeks`，Linux 是 `~/.local/share/memeseeks`），建好「迷因捕手」快捷方式，然后启动。
 
-- 第一次启动会下载约 3.9 GB 的模型，网页上能看到进度；下完就能搜索，其他功能马上就能用。
+- 第一次启动会下载约 1 GB 的模型，网页上能看到进度；下完就能搜索，其他功能马上就能用。
 - 在国内会自动换用镜像（PyPI、Python 和模型都走国内镜像）。
 - 不改系统 PATH。想卸载，删掉那个文件夹和快捷方式即可；你的图库默认在 `~/.memeseeks`，不会被删。
 - 想更新，再运行一次同一行命令。
@@ -149,6 +149,8 @@ MEMESEEKS_KLIPY_KEY=<你的 key> memeseeks serve --online klipy     # 或者设�
 | 画面 | [Chinese-CLIP](https://github.com/OFA-Sys/Chinese-CLIP) 图文相似度 | 不用 |
 | 描述（可选） | 本地视觉语言模型（[Qwen2.5-VL-7B](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)）写出主题和笑点 | 要，约 16 GB 显存 |
 
+BGE-M3 和 Chinese-CLIP 用的是它们的 8 位 ONNX 版本（[tactino/memeseeks-models](https://huggingface.co/tactino/memeseeks-models)），在 ONNX Runtime 上运行，不需要 PyTorch；下载量是原版的四分之一，搜索结果和原版一致（`experiments/results/onnx.md`）。
+
 在维护者那批字很多的梗图上，前两个途径已经能把每条查询要找的图排进前五，所以「描述」默认关闭。数字见 `experiments/results/`。
 
 ## 命令行
@@ -165,7 +167,7 @@ memeseeks --lib D:\memes-lib status       # --lib 这类全局选项写在子命
 
 `add --vlm` 会另外用本地视觉语言模型给图写描述（需要显卡），`add --tidy` 会让视觉语言模型把图里的文字整理成对话和评论、纠正识别错字（需要约 20 GB 显存的显卡），`--retry-failed` 会重做上次失败的图。整理时模型还会认出知名的梗：梗图页显示「梗：电车难题」，点一下就搜同一个梗的其他图；外文梗图没有中文翻译时，会在文字下面显示「【译】…」。
 
-电脑没有显卡时，可以让另一台有显卡的电脑来整理：`memeseeks tidy-remote --host 主机 --home 目录`。它通过 ssh 连过去（要先配好密钥登录），`目录` 里要有装了 `memeseeks[ml]` 的 `.venv` 和模型缓存 `hf-cache`。之后每次更新图库，没整理过的新图都会自动送过去；结果拿回来后，那边的图会删掉。
+电脑没有显卡时，可以让另一台有显卡的电脑来整理：`memeseeks tidy-remote --host 主机 --home 目录`。它通过 ssh 连过去（要先配好密钥登录），`目录` 里要有装了 `memeseeks[ml,torch]` 的 `.venv` 和模型缓存 `hf-cache`。之后每次更新图库，没整理过的新图都会自动送过去；结果拿回来后，那边的图会删掉。
 
 **评测你自己的查询**：`queries.csv` 第一行是表头，之后每行一条查询和它应该找到的文件名，多个文件名用 `;` 分隔。文件名可以是相对于添加的文件夹的路径，也可以是不重名的文件名。
 
@@ -182,12 +184,13 @@ query,expected
 ```bash
 git clone https://github.com/tactino/memeseeks && cd memeseeks
 python -m venv .venv && source .venv/bin/activate        # Windows：.venv\Scripts\activate
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu   # 有显卡就装对应的 CUDA 版
 pip install -e ".[ml,serve]"
 ```
 
-- 第一次运行会把约 3.9 GB 的模型下载到 Hugging Face 缓存（`HF_HOME`）。**在国内**请先设置 `HF_ENDPOINT=https://hf-mirror.com`。
-- **Windows + Anaconda**：如果用 torch 2.9 或更新版本，不要用 Anaconda 的 Python 建虚拟环境，否则 torch 会报 `WinError 1114 … c10.dll`。原因是 Anaconda 在 `python.exe` 旁边放了一份旧的 MSVC 运行库。改用 python.org 的 Python，或者 uv 管理的 Python（`uv venv --managed-python --python 3.12`）。
+- 要用显卡功能（`--vlm`、`--tidy`）时，先装对应显卡的 PyTorch，再 `pip install -e ".[torch]"`。
+
+- 第一次运行会把约 1 GB 的模型下载到 Hugging Face 缓存（`HF_HOME`）。**在国内**请先设置 `HF_ENDPOINT=https://hf-mirror.com`。
+- **Windows + Anaconda**：如果装了 torch 2.9 或更新版本，不要用 Anaconda 的 Python 建虚拟环境，否则 torch 会报 `WinError 1114 … c10.dll`。原因是 Anaconda 在 `python.exe` 旁边放了一份旧的 MSVC 运行库。改用 python.org 的 Python，或者 uv 管理的 Python（`uv venv --managed-python --python 3.12`）。
 
 ## 用 Docker 运行
 
@@ -200,7 +203,7 @@ docker compose up -d
 docker compose logs -f      # 等到出现 "memeseeks is at http://…"
 ```
 
-- 第一次启动会把约 3.9 GB 的模型下载到 `models` 卷，并为你的文件夹建立索引。**建完索引之前 8765 端口不会响应**，请看日志。
+- 第一次启动会把约 1 GB 的模型下载到 `models` 卷，并为你的文件夹建立索引。**建完索引之前 8765 端口不会响应**，请看日志。
 - 之后在每台设备上打开一次 `http://<这台电脑的局域网地址>:8765/?token=<你的口令>`，浏览器会记住它。
 - 以后启动只处理新图。更新代码后运行 `docker compose up -d --build`；`docker compose down -v` 会删掉图库和下载的模型。
 - 梗图文件夹以只读方式挂载。容器以 uid 1000 运行；如果你把 `library` 卷换成绑定挂载，要让 uid 1000 能写那个文件夹。

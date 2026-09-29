@@ -14,14 +14,25 @@ from pathlib import Path
 REPO = "tactino/memeseeks-models"
 REVISION = "main"
 FOLDERS = {"bge": "bge-m3-q8", "clip": "chinese-clip-l336-q8"}
+ONNX_BYTES = 1_018_000_000  # both folders, as uploaded (TODO: exact once uploaded)
+TORCH_BYTES = {"BAAI/bge-m3": 2_293_331_623, "OFA-Sys/chinese-clip-vit-large-patch14-336px": 1_626_539_027}
 
 
 def backend() -> str:
-    return "torch" if os.environ.get("MEMESEEKS_BACKEND", "torch").strip().lower() == "torch" else "onnx"
+    return "torch" if os.environ.get("MEMESEEKS_BACKEND", "").strip().lower() == "torch" else "onnx"
 
 
 def repo() -> str:
     return os.environ.get("MEMESEEKS_MODEL_REPO") or REPO
+
+
+def downloads() -> dict[str, int]:
+    """The Hugging Face repositories the chosen models come from, and how many bytes each downloads."""
+    if backend() == "torch":
+        return dict(TORCH_BYTES)
+    if os.environ.get("MEMESEEKS_MODELS_DIR"):
+        return {}
+    return {repo(): ONNX_BYTES}
 
 
 def model_dir(name: str) -> Path:

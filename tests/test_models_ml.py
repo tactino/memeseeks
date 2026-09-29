@@ -21,16 +21,16 @@ def test_ocr_blank_image_returns_no_lines():
 
 
 def test_chinese_clip_prefers_matching_colour():
-    from memeseeks.models.clip import ChineseClip
-    clip = ChineseClip()
+    from memeseeks.models.store import make
+    clip = make("clip")  # the backend MEMESEEKS_BACKEND picks: the 8-bit ONNX copy unless it says torch
     img = clip.embed_images([Image.new("RGB", (224, 224), (220, 20, 20))])[0]
     texts = clip.embed_texts(["一张红色的图片", "一张蓝色的图片"])
     assert texts[0] @ img > texts[1] @ img
 
 
 def test_bge_m3_is_cross_lingual():
-    from memeseeks.models.textembed import BgeM3
-    e = BgeM3().embed(["一只猫", "a cat", "一辆汽车"])
+    from memeseeks.models.store import make
+    e = make("bge").embed(["一只猫", "a cat", "一辆汽车"])
     assert e[0] @ e[1] > e[0] @ e[2]
 
 

@@ -136,7 +136,7 @@ def _report_download(warmup, downloaded_bytes, every: float = 15.0) -> None:
     while warmup.status()["state"] == "loading":
         time.sleep(every)
         if warmup.status()["state"] == "loading":
-            print(f"models: {downloaded_bytes(warmup.cache) / 1e9:.1f} / {warmup.expected / 1e9:.1f} GB")
+            print(f"models: {downloaded_bytes(warmup.cache, warmup.repos) / 1e9:.1f} / {warmup.expected / 1e9:.1f} GB")
     s = warmup.status()
     print("models ready" if s["state"] == "ready" else f"the models could not load: {s['error']}", flush=True)
 

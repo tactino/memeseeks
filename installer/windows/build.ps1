@@ -36,12 +36,12 @@ Copy-Item $found.FullName (Join-Path $app "python") -Recurse
 $python = Join-Path $app "python\python.exe"
 Remove-Item (Join-Path $app "python\Lib\EXTERNALLY-MANAGED") -ErrorAction SilentlyContinue  # this copy is ours
 
-# ---- memeseeks and what it needs; on Windows the torch that PyPI has is the CPU build ----
+# ---- memeseeks and what it needs (search runs on ONNX Runtime: no PyTorch) ----
 & uv pip install --python $python --link-mode copy "memeseeks[ml,serve,app] @ file:///$($Wheel -replace '\\', '/')"
 if ($LASTEXITCODE -ne 0) { throw "installing memeseeks failed" }
 Get-ChildItem (Join-Path $app "python") -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
 Copy-Item (Join-Path $repo "src\memeseeks\web\icons\memeseeks.ico") (Join-Path $app "memeseeks.ico")
-& $python -c "import memeseeks.tray, memeseeks.wintray, torch, transformers, uvicorn, webview; print('imports ok')"
+& $python -c "import importlib.util as u, memeseeks.tray, memeseeks.wintray, onnxruntime, tokenizers, uvicorn, webview; assert not u.find_spec('torch'), 'torch came along'; print('imports ok')"
 if ($LASTEXITCODE -ne 0) { throw "the staged app does not import" }
 $size = (Get-ChildItem $app -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
 Write-Host ("staged {0:N0} MB in {1}" -f $size, $app)

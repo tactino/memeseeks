@@ -1,5 +1,11 @@
 # 更新说明
 
+## 0.4.0（未发布）
+
+- 搜索模型改在 ONNX Runtime 上运行，用 BGE-M3 和 Chinese-CLIP 的 8 位版本，不再需要 PyTorch。第一次下载的模型从约 3.9 GB 降到约 1 GB，Windows 安装包从约 200 MB 降到约 SIZE MB；在维护者的图库上，搜索快了一倍，建索引时每张图的画面部分快了近一半，内存占用约减半，25 条标注查询的结果和原来一样（`experiments/results/onnx.md`）。
+- 从旧版升级：会重新下载约 1 GB 的新模型；图库不用重建，图的文字向量会在后台重新算一遍（很快）。旧模型（Hugging Face 缓存里的 `BAAI--bge-m3` 和 `OFA-Sys--chinese-clip-…`）不再使用，可以删掉，省出约 3.9 GB。
+- 显卡功能（`--vlm`、`--tidy`）改为可选依赖：`pip install "memeseeks[torch]"`。`MEMESEEKS_BACKEND=torch` 可以换回原版模型。
+
 ## 0.3.3（2026-09-28）
 
 - Windows 安装版在自己的窗口里打开（用 Windows 自带的 WebView2），不再依赖浏览器；关掉窗口它还在右下角运行，点猫就回来，右键菜单可以改在浏览器里打开。任务栏上显示为「迷因捕手」和猫的图标。

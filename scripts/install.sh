@@ -64,12 +64,8 @@ if [ ! -x "$PY" ]; then
   "$UV" venv --managed-python --python 3.12 "$DIR/.venv" --quiet || fail "创建 Python 环境失败"
 fi
 
-# ---- the app; on Linux, PyPI's torch is the CUDA build (several GB), so take the CPU one first ----
-step "安装迷因捕手（第一次大约 700 MB，需要几分钟）"
-if [ "$OS" = "Linux" ]; then
-  "$UV" pip install --python "$PY" torch --index-url https://download.pytorch.org/whl/cpu \
-    || fail "安装 torch 失败。网络不稳时重新运行一次即可"
-fi
+# ---- the app (search runs on ONNX Runtime: no PyTorch) ----
+step "安装迷因捕手（第一次大约 SIZE MB，需要一两分钟）"
 "$UV" pip install --python "$PY" "memeseeks[ml,serve] @ $SOURCE" --reinstall-package memeseeks --refresh-package memeseeks \
   || fail "安装失败。网络不稳时重新运行一次即可，已下载的部分不会重下"
 "$UV" cache prune --quiet 2>/dev/null || true

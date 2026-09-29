@@ -1,6 +1,6 @@
 """Getting the models ready while the web app is already up (docs/design.md, "First run").
 
-On the first run this downloads them, about 3.9 GB, so the server listens at once and the page shows how
+On the first run this downloads them, about 1 GB, so the server listens at once and the page shows how
 far the download has got; search waits, everything else works. The indexer starts once the models are in.
 """
 
@@ -10,10 +10,9 @@ import os
 import threading
 from pathlib import Path
 
+from .models.store import downloads
 from .search import EmptyLibrary
 
-# What the default models load from the Hugging Face Hub (their main branch), in bytes.
-EXPECTED = {"BAAI/bge-m3": 2_293_331_623, "OFA-Sys/chinese-clip-vit-large-patch14-336px": 1_626_539_027}
 MIRROR_HINT = "连不上 Hugging Face。在国内可以先设置环境变量 HF_ENDPOINT=https://hf-mirror.com，再重新启动迷因捕手。"
 
 
@@ -26,7 +25,7 @@ def hub_cache() -> Path:
         return Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
 
 
-def downloaded_bytes(cache: Path, repos=EXPECTED) -> int:
+def downloaded_bytes(cache: Path, repos) -> int:
     """Bytes of these models in the cache so far, a download under way included. Symlinked snapshots
     point at blobs and are skipped; without symlinks (Windows) the snapshot files are the real ones."""
     total = 0
@@ -50,12 +49,13 @@ def _unreachable(exc: BaseException) -> bool:
 
 
 class Warmup:
-    def __init__(self, service, names=("bge", "clip", "ocr"), then=None, cache=None, expected: int | None = None):
+    def __init__(self, service, names=("bge", "clip", "ocr"), then=None, cache=None, repos: dict | None = None):
         self.service, self.names, self.then = service, names, then
         self.cache = Path(cache) if cache is not None else hub_cache()
-        self.expected = sum(EXPECTED.values()) if expected is None else expected
+        self.repos = downloads() if repos is None else repos  # {repository: bytes}
+        self.expected = sum(self.repos.values())
         # a first run: the models are not (all) there yet
-        self.downloading = downloaded_bytes(self.cache) < self.expected * 0.98
+        self.downloading = bool(self.repos) and downloaded_bytes(self.cache, self.repos) < self.expected * 0.98
         self._state, self._error = "loading", None
         self._thread: threading.Thread | None = None
 
@@ -88,5 +88,5 @@ class Warmup:
     def status(self) -> dict:
         download = None
         if self._state == "loading" and self.downloading:
-            download = {"done": downloaded_bytes(self.cache), "total": self.expected}
+            download = {"done": downloaded_bytes(self.cache, self.repos), "total": self.expected}
         return {"state": self._state, "download": download, "error": self._error}

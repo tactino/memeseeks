@@ -88,7 +88,7 @@ if (-not (Test-Path $Uv)) {
   Say "uv $((& $Uv --version) -replace '^uv ', '')"
 }
 
-# ---- Python 3.12 of its own (not Anaconda's: its old MSVC runtime breaks torch >= 2.9) ----
+# ---- Python 3.12 of its own (not Anaconda's, whose old MSVC runtime breaks native packages) ----
 $Venv = Join-Path $Dir ".venv"
 $Python = Join-Path $Venv "Scripts\python.exe"
 if (-not (Test-Path $Python)) {
@@ -97,8 +97,8 @@ if (-not (Test-Path $Python)) {
   if ($LASTEXITCODE -ne 0) { throw "创建 Python 环境失败" }
 }
 
-# ---- the app; on Windows the torch that PyPI has is the CPU build ----
-Step "安装迷因捕手（第一次大约 700 MB，需要几分钟）"
+# ---- the app (search runs on ONNX Runtime: no PyTorch) ----
+Step "安装迷因捕手（第一次大约 SIZE MB，需要一两分钟）"
 & $Uv pip install --python $Python "memeseeks[ml,serve] @ $Source" --reinstall-package memeseeks --refresh-package memeseeks
 if ($LASTEXITCODE -ne 0) { throw "安装失败。网络不稳时重新运行一次即可，已下载的部分不会重下" }
 & $Uv cache prune --quiet 2>$null

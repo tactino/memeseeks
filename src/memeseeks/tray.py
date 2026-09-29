@@ -20,7 +20,6 @@ from pathlib import Path
 
 PORT = 8765
 APP_ID = "memeseeks.memeseeks"  # the taskbar's name for us; the installer's shortcuts carry the same
-MODELS = ("BAAI--bge-m3", "OFA-Sys--chinese-clip-vit-large-patch14-336px")  # the ones search needs downloaded
 
 
 def app_dir() -> Path:
@@ -45,8 +44,11 @@ def apply_config(config: dict, env=os.environ) -> None:
 
 
 def models_missing(hf_home: str | None) -> bool:
+    """Whether search still has models to download (models/store.py says which)."""
+    from .models.store import downloads
+
     hub = Path(hf_home or Path.home() / ".cache" / "huggingface") / "hub"
-    return not all((hub / f"models--{m}").is_dir() for m in MODELS)
+    return not all((hub / ("models--" + repo.replace("/", "--"))).is_dir() for repo in downloads())
 
 
 def choose_mirror(env=os.environ, reachable=None) -> None:

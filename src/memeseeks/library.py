@@ -26,10 +26,14 @@ def _make(name: str):
     if name in ("clip", "bge"):
         from .models.store import make
         return make(name)
-    if name == "vlm":
-        from .models.vlm import QwenVl
-        return QwenVl()
-    if name == "tidy":
+    if name in ("vlm", "tidy"):
+        import importlib.util
+
+        if not importlib.util.find_spec("torch") or not importlib.util.find_spec("transformers"):
+            raise ImportError("a vision-language model needs PyTorch and a GPU: pip install \"memeseeks[torch]\"")
+        if name == "vlm":
+            from .models.vlm import QwenVl
+            return QwenVl()
         from .tidy import Tidier
         return Tidier()
     raise KeyError(name)

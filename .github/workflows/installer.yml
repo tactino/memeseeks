@@ -39,8 +39,22 @@ jobs:
           if ($setup.ExitCode -ne 0) { throw "setup exited with $($setup.ExitCode)" }
           $config = Get-Content (Join-Path $dir "launcher.json") -Raw -Encoding utf8 | ConvertFrom-Json
           if ($config.library -ne $lib) { throw "launcher.json has library $($config.library)" }
-          & (Join-Path $dir "python\python.exe") -c "import memeseeks, memeseeks.tray, torch, transformers, webview; print('memeseeks', memeseeks.__version__)"
+          & (Join-Path $dir "python\python.exe") -c "import memeseeks, memeseeks.tray, onnxruntime, tokenizers, webview; print('memeseeks', memeseeks.__version__)"
           if ($LASTEXITCODE -ne 0) { throw "the installed app does not import" }
+          # the search models: downloaded (about 1 GB) and run by the installed Python
+          $env:HF_HOME = Join-Path $env:RUNNER_TEMP "models"
+          & (Join-Path $dir "python\python.exe") -c @'
+          from PIL import Image
+          from memeseeks.models.store import make
+          bge, clip = make("bge"), make("clip")
+          t = bge.embed(["一只猫", "a cat", "一辆汽车"])
+          assert t[0] @ t[1] > t[0] @ t[2], "BGE-M3 is not cross-lingual"
+          img = clip.embed_images([Image.new("RGB", (400, 300), (220, 20, 20))])[0]
+          q = clip.embed_texts(["一张红色的图片", "一张蓝色的图片"])
+          assert q[0] @ img > q[1] @ img, "Chinese-CLIP does not tell red from blue"
+          print("models ok:", bge.model_id, clip.model_id)
+          '@
+          if ($LASTEXITCODE -ne 0) { throw "the search models do not run" }
           $un = Start-Process (Join-Path $dir "unins000.exe") -Wait -PassThru -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES"
           Start-Sleep -Seconds 3
           if (Test-Path (Join-Path $dir "python")) { throw "uninstalling left the program behind" }
