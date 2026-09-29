@@ -12,9 +12,9 @@ import os
 from pathlib import Path
 
 REPO = "tactino/memeseeks-models"
-REVISION = "main"
+REVISION = "f3dd69557c900c45b035b180215a4f561979de6f"  # the upload experiments/results/onnx.md was checked on
 FOLDERS = {"bge": "bge-m3-q8", "clip": "chinese-clip-l336-q8"}
-ONNX_BYTES = 1_018_000_000  # both folders, as uploaded (TODO: exact once uploaded)
+ONNX_BYTES = 1_017_661_296  # both folders at REVISION
 TORCH_BYTES = {"BAAI/bge-m3": 2_293_331_623, "OFA-Sys/chinese-clip-vit-large-patch14-336px": 1_626_539_027}
 
 
