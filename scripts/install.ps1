@@ -12,7 +12,7 @@
 # (This file is UTF-8 without a BOM, as irm | iex needs; Windows PowerShell would misread it with -File.)
 #
 # Everything goes into one folder (default %LOCALAPPDATA%\memeseeks): its own uv, its own Python, the app,
-# and the models (about 3.9 GB, fetched on the first start). Nothing is added to PATH or the registry;
+# and the models (about 1 GB, fetched on the first start). Nothing is added to PATH or the registry;
 # uninstalling is deleting that folder and the two shortcuts. Your library stays in %USERPROFILE%\.memeseeks.
 # Run it again to update. From China it uses mirrors for PyPI, Python and the models (-Mirror auto|on|off).
 
@@ -32,9 +32,18 @@ $ProgressPreference = "SilentlyContinue"  # Invoke-WebRequest is many times slow
 
 function Say($text) { Write-Host "  $text" }
 function Step($text) { Write-Host ""; Write-Host "» $text" -ForegroundColor Yellow }
+function Strip {  # a strip of the app's Mondrian frame: blocks of colour between black lines
+  Write-Host "  " -NoNewline
+  foreach ($cell in @(@("White", 7), @("Yellow", 12), @("White", 5), @("Red", 6), @("DarkBlue", 9), @("White", 4), @("Yellow", 8))) {
+    Write-Host (" " * $cell[1]) -BackgroundColor $cell[0] -NoNewline
+    Write-Host " " -BackgroundColor Black -NoNewline
+  }
+  Write-Host ""
+}
 
 Write-Host ""
-Write-Host "迷因捕手 · memeseeks 安装" -ForegroundColor Yellow
+Strip
+Write-Host "  迷因捕手 · MEMESEEKS 安装" -ForegroundColor Yellow
 $Dir = [IO.Path]::GetFullPath($Dir)
 if ($Library) { $Library = [IO.Path]::GetFullPath($Library) }
 if ($Models) { $Models = [IO.Path]::GetFullPath($Models) }
@@ -140,8 +149,9 @@ foreach ($where in $ShortcutDirs) {
 }
 
 Write-Host ""
+Strip
 Write-Host "装好了。" -ForegroundColor Green
 Say "以后双击桌面上的「迷因捕手」启动，关掉它的黑色窗口就会停止。"
-Say "第一次启动会下载约 3.9 GB 的模型，网页上能看到进度；下完就能搜索。"
+Say "第一次启动会下载约 1 GB 的模型，网页上能看到进度；下完就能搜索。"
 Say "卸载：删除 $Dir 和两个快捷方式。你的图库在 $LibraryShown，不会被删除。"
 if (-not $NoLaunch) { Start-Process -FilePath $launcher -WorkingDirectory $Dir }

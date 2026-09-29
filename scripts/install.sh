@@ -12,7 +12,7 @@
 #   MEMESEEKS_SOURCE  what to install (default: the main branch on GitHub)
 #   MEMESEEKS_NO_SHORTCUT=1, MEMESEEKS_NO_LAUNCH=1
 #
-# Everything goes into that one folder: its own uv, its own Python, the app, and the models (about 3.9 GB,
+# Everything goes into that one folder: its own uv, its own Python, the app, and the models (about 1 GB,
 # fetched on the first start). Nothing is added to your shell's PATH. Uninstalling is deleting the folder
 # (and the shortcut); your library stays in ~/.memeseeks. Run it again to update.
 
@@ -21,6 +21,9 @@ set -eu
 say() { printf '  %s\n' "$1"; }
 step() { printf '\n\033[33m» %s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31m%s\033[0m\n' "$1" >&2; exit 1; }
+strip() {  # a strip of the app's Mondrian frame: blocks of colour between black lines
+  printf '  \033[47m       \033[40m \033[43m            \033[40m \033[47m     \033[40m \033[41m      \033[40m \033[44m         \033[40m \033[47m    \033[40m \033[43m        \033[40m \033[0m\n'
+}
 
 OS=$(uname -s)
 if [ "$OS" = "Darwin" ]; then DEFAULT_DIR="$HOME/Library/Application Support/memeseeks"
@@ -32,7 +35,9 @@ MIRROR=${MEMESEEKS_MIRROR:-auto}
 SOURCE=${MEMESEEKS_SOURCE:-https://github.com/tactino/memeseeks/archive/refs/heads/main.zip}
 command -v curl >/dev/null 2>&1 || fail "需要 curl"
 
-printf '\n\033[33m迷因捕手 · memeseeks 安装\033[0m\n'
+printf '\n'
+strip
+printf '\033[33m  迷因捕手 · MEMESEEKS 安装\033[0m\n'
 say "程序：$DIR"
 say "图库：${LIBRARY:-$HOME/.memeseeks}"
 say "模型：${MODELS:-$DIR/models}"
@@ -99,8 +104,10 @@ if [ -z "${MEMESEEKS_NO_SHORTCUT:-}" ]; then
   say "快捷方式：$LINK"
 fi
 
-printf '\n\033[32m装好了。\033[0m\n'
+printf '\n'
+strip
+printf '\033[32m装好了。\033[0m\n'
 say "以后从快捷方式启动，或者运行：\"$LAUNCHER\"；关掉它的终端就会停止。"
-say "第一次启动会下载约 3.9 GB 的模型，网页上能看到进度；下完就能搜索。"
+say "第一次启动会下载约 1 GB 的模型，网页上能看到进度；下完就能搜索。"
 say "卸载：删除 $DIR（和快捷方式）。你的图库在 ${LIBRARY:-~/.memeseeks}，不会被删除。"
 if [ -z "${MEMESEEKS_NO_LAUNCH:-}" ]; then exec "$LAUNCHER"; fi

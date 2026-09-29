@@ -155,6 +155,8 @@ use the same command list for every shape, so every animation is just interpolat
 | pull to refresh (touch) | open by default; pulling swallows the bubble and shuts the mouth, it stays shut while held; letting go opens it and spits the bubble out | |
 | empty results | the cat with its mouth shut: 这里还没有梗 | still |
 | 404 | the cat with its mouth wide open and nothing inside: 这张梗被吃掉了 | still |
+| no token (a phone) | the cat with its mouth shut: 要先扫码, and how | still |
+| no answer from the server | the cat with its mouth shut: 连不上迷因捕手, and 再试一次 | still |
 
 The nose rises and shrinks as the mouth opens and disappears at half its size (no dot is left behind).
 
@@ -239,8 +241,24 @@ picture when the page's rules know it. The label sits beside the cat, out of the
 moves the cat. The cat's shapes come
 from `web/popcat.js`, filled into the script when the server hands it out.
 
+## Outside the page
+
+Everything else people see keeps the same paper, ink, cat and Mondrian lines:
+
+- **The installer** (Inno Setup 6.6+): the wizard on paper without bevels; the welcome and finish pages
+  have a Mondrian panel with the cat and 迷因捕手 beside them, the other pages the cat in the corner
+  (`installer/windows/art/`, drawn from the app's own cat, fonts and colours by `art/make.py`). The wording
+  is ours: 欢迎安装迷因捕手, 装好了, what the library and the models are.
+- **The window's first seconds**: it opens at once on a splash (`splash.py`): the frame, the cat opening
+  and shutting, 迷因捕手 and 正在启动… in the library's theme, and a word about Windows checking new files
+  when a first start is slow. It moves on to the web app as soon as the server answers.
+- **The title bar** (Windows 11): paper with ink text and an ink border, night colours in 夜间; the page
+  tells the window when the theme changes.
+- **The one-line installers** print a strip of the frame in terminal colours at the start and the end.
+
 ## Regenerating assets
 
 - UI text changed: `python tools/fonts/subset.py` (`tests/test_design_assets.py` tells you when).
+- The installer's pictures: `python installer/windows/art/make.py` (after the cat, the fonts or the colours change).
 - The cat changed: run the pipeline in `tools/logo/`, then `tools/logo/export.py`, which rewrites
   `web/popcat.js`, `web/icons/*` and the launcher's `memeseeks.ico`.

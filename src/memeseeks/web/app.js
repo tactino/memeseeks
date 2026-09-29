@@ -24,7 +24,14 @@ async function request(method, path, body) {
   const init = { method, credentials: "same-origin", headers: {} };
   if (body instanceof Blob) { init.headers["Content-Type"] = body.type; init.body = body; }  // an upload: the image itself
   else if (body !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(body); }
-  const res = await fetch(path, init);
+  let res;
+  try {
+    res = await fetch(path, init);
+  } catch (e) {  // no answer at all: the computer running it is off, or memeseeks is not running
+    const err = new Error("连不上迷因捕手");
+    err.status = 0;
+    throw err;
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || `请求失败（${res.status}）`);
@@ -60,6 +67,12 @@ const grid = (items) => h("div.grid", {}, items.map((it) => (it instanceof Node 
 function blank(closed, title, text, ...extra) {
   return h("section.blank", {}, Cat.make({ closed, bubble: 0 }), h("h2", { text: title }), h("p", { text }), ...extra);
 }
+
+// a phone without the token (or with one from before 换一个口令), and a server that does not answer
+const needToken = () => blank(1, "要先扫码",
+  "请用电脑上「设置 → 手机访问」里的二维码打开这个页面。口令换过的话，之前扫的链接会失效，重新扫一次就好。");
+const unreachable = () => blank(1, "连不上迷因捕手", "运行它的电脑可能关机了，或者迷因捕手没在运行。打开它以后再试一次。",
+  h("div.blank-actions", {}, h("button.btn.primary", { type: "button", text: "再试一次", onclick: () => render() })));
 
 function searchForm(value = "") {
   const form = h("form.search", { role: "search" },
@@ -127,7 +140,8 @@ function titleBar() {
   if (api && api.theme) api.theme(settings.theme).catch(() => {});
 }
 addEventListener("pywebviewready", titleBar);
-const settingsReady = api("/api/settings").then(applySettings).catch(() => settings);
+let settingsLoaded = false;  // false: the library's settings could not be read (no token, no server)
+const settingsReady = api("/api/settings").then((s) => { settingsLoaded = true; return applySettings(s); }).catch(() => settings);
 
 // ---------------- upload: the button, and dropping files anywhere ----------------
 const IMAGE_NAME = /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i;
@@ -1092,7 +1106,8 @@ async function render({ back = false, slide = true } = {}) {
   try {
     nodes = await (PAGES[r.view] || homePage)(r);
   } catch (err) {
-    nodes = err.status === 409 ? emptyLibrary() : h("p.notice.error", { text: err.message });
+    nodes = err.status === 409 ? emptyLibrary() : err.status === 401 ? needToken() : err.status === 0 ? unreachable()
+      : h("p.notice.error", { text: err.message });
   }
   clearTimeout(slow);
   const leave = [].concat(nodes).map((n) => n && n._leave).find(Boolean) || null;
@@ -1312,7 +1327,7 @@ Frame.draw();
 {
   const first = render();
   const entrance = document.documentElement.dataset.intro ? intro(first) : first;
-  Promise.all([first, entrance, settingsReady]).then(() => { if (!settings.tour_done) Tour.start(); }).catch(() => {});
+  Promise.all([first, entrance, settingsReady]).then(() => { if (settingsLoaded && !settings.tour_done) Tour.start(); }).catch(() => {});
 }
 
 if ("serviceWorker" in navigator && window.isSecureContext) {

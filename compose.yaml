@@ -10,7 +10,7 @@ services:
     volumes:
       - ${MEMES_DIR:?set MEMES_DIR in .env (copy .env.example)}:/memes:ro
       - library:/library   # index, thumbnails, 旧梗重温 history
-      - models:/models     # ~4 GB of models, downloaded on the first run
+      - models:/models     # ~1 GB of models, downloaded on the first run
     restart: unless-stopped
 
 volumes:
