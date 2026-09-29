@@ -76,7 +76,7 @@ class OnnxClip:
         about = _about(folder)
         self.model_id = f"{about['source']}@onnx-{about['precision']}"
         self.size, self.dim = about["image_size"], about["dim"]
-        self.tokenizer = BertWordPieceTokenizer(str(folder / "vocab.txt"), lowercase=True)
+        self.tokenizer = BertWordPieceTokenizer.from_file(str(folder / "vocab.txt"), lowercase=True)
         self.tokenizer.enable_truncation(52)
         self.tokenizer.enable_padding(pad_id=0, pad_token="[PAD]")
         self.text_session = _session(folder / "text.onnx", threads)

@@ -95,7 +95,32 @@ def _embed_chunk(clip, chunk, errors: dict[str, str]):
         return kept, (np.concatenate(rows) if rows else None)
 
 
+CLIP_BEFORE_RECORDED = "OFA-Sys/chinese-clip-vit-large-patch14-336px"  # what made image vectors before clip_model.json
+
+
+def image_model(clip) -> str:
+    """Which model an image vector comes from. Copies of one model (PyTorch, ONNX fp32, 8-bit) agree to 0.998 cosine
+    (experiments/results/onnx.md), so they count as one: switching between them keeps the vectors."""
+    return getattr(clip, "model_id", type(clip).__name__).split("@", 1)[0]
+
+
+def _check_image_model(out: Path, model: str, log) -> None:
+    """Drop the image vectors if another model made them: they would not compare with this model's."""
+    record, vec_path = out / "clip_model.json", out / "clip.npy"
+    if record.exists():
+        made = json.loads(record.read_text(encoding="utf-8")).get("model")
+    else:
+        made = CLIP_BEFORE_RECORDED if vec_path.exists() else model
+    if made != model:
+        for name in ("clip_ids.json", "clip.npy", "clip_errors.json"):
+            (out / name).unlink(missing_ok=True)
+        log(f"clip: the image model changed ({made} -> {model}); every image is embedded again")
+    if made != model or not record.exists():
+        _atomic_write_text(record, json.dumps({"model": model}))
+
+
 def _clip_stage(records, out: Path, clip, log, progress=None) -> None:
+    _check_image_model(out, image_model(clip), log)
     ids_path, vec_path, err_path = out / "clip_ids.json", out / "clip.npy", out / "clip_errors.json"
     ids = json.loads(ids_path.read_text(encoding="utf-8")) if ids_path.exists() else []
     vecs = np.load(vec_path) if vec_path.exists() else None

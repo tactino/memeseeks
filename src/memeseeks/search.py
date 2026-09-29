@@ -96,7 +96,8 @@ class Searcher:
                     best_text[i] = max(best_text.get(i, -1.0), sim)
         if self.clip_ids:
             q = self.models.get("clip").embed_texts([query])[0]
-            out["clip"] = rank_route(q, self.clip_ids, self.clip, self.ids)
+            if q.shape[0] == self.clip.shape[1]:  # else another image model made them: skipped until re-embedded
+                out["clip"] = rank_route(q, self.clip_ids, self.clip, self.ids)
         return out, best_text, lex
 
     def similar(self, image_id: str) -> list[tuple[str, float]]:

@@ -23,12 +23,9 @@ def _make(name: str):
     if name == "ocr":
         from .models.ocr import RapidOcr
         return RapidOcr()
-    if name == "clip":
-        from .models.clip import ChineseClip
-        return ChineseClip()
-    if name == "bge":
-        from .models.textembed import BgeM3
-        return BgeM3()
+    if name in ("clip", "bge"):
+        from .models.store import make
+        return make(name)
     if name == "vlm":
         from .models.vlm import QwenVl
         return QwenVl()

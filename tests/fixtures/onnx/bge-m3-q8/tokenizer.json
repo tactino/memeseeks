@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "truncation": null,
+  "padding": null,
+  "added_tokens": [],
+  "normalizer": null,
+  "pre_tokenizer": {
+    "type": "Split",
+    "pattern": {
+      "Regex": "."
+    },
+    "behavior": "Isolated",
+    "invert": false
+  },
+  "post_processor": {
+    "type": "TemplateProcessing",
+    "single": [
+      {
+        "SpecialToken": {
+          "id": "<s>",
+          "type_id": 0
+        }
+      },
+      {
+        "Sequence": {
+          "id": "A",
+          "type_id": 0
+        }
+      },
+      {
+        "SpecialToken": {
+          "id": "</s>",
+          "type_id": 0
+        }
+      }
+    ],
+    "pair": [
+      {
+        "Sequence": {
+          "id": "A",
+          "type_id": 0
+        }
+      },
+      {
+        "Sequence": {
+          "id": "B",
+          "type_id": 1
+        }
+      }
+    ],
+    "special_tokens": {
+      "</s>": {
+        "id": "</s>",
+        "ids": [
+          2
+        ],
+        "tokens": [
+          "</s>"
+        ]
+      },
+      "<s>": {
+        "id": "<s>",
+        "ids": [
+          0
+        ],
+        "tokens": [
+          "<s>"
+        ]
+      }
+    }
+  },
+  "decoder": null,
+  "model": {
+    "type": "WordLevel",
+    "vocab": {
+      "<s>": 0,
+      "<pad>": 1,
+      "</s>": 2,
+      "<unk>": 3,
+      "a": 4,
+      "b": 5,
+      "c": 6,
+      "d": 7,
+      "e": 8,
+      "f": 9,
+      "g": 10,
+      "h": 11,
+      "i": 12,
+      "j": 13,
+      "k": 14,
+      "l": 15,
+      "m": 16,
+      "n": 17,
+      "o": 18,
+      "p": 19,
+      "q": 20,
+      "r": 21,
+      "s": 22,
+      "t": 23,
+      "u": 24,
+      "v": 25,
+      "w": 26,
+      "x": 27,
+      "y": 28,
+      "z": 29,
+      "0": 30,
+      "1": 31,
+      "2": 32,
+      "3": 33,
+      "4": 34,
+      "5": 35,
+      "6": 36,
+      "7": 37,
+      "8": 38,
+      "9": 39,
+      " ": 40,
+      "猫": 41,
+      "狗": 42,
+      "今": 43,
+      "天": 44,
+      "好": 45,
+      "累": 46,
+      "一": 47,
+      "只": 48,
+      "汽": 49,
+      "车": 50,
+      "红": 51,
+      "色": 52,
+      "蓝": 53,
+      "的": 54,
+      "图": 55,
+      "片": 56
+    },
+    "unk_token": "<unk>"
+  }
+}

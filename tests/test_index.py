@@ -188,3 +188,33 @@ def test_text_vectors_rebuild_when_the_embedder_changes(tmp_path):
     build_text_vectors(idx, tmp_path, first, log=lambda m: None)
     build_text_vectors(idx, tmp_path, second, log=lambda m: None)
     assert first.calls == 1 and second.calls == 1
+
+
+class CountingClip:
+    def __init__(self, model_id, dim=3):
+        self.model_id, self.dim, self.calls = model_id, dim, 0
+
+    def embed_images(self, images):
+        self.calls += len(images)
+        return np.ones((len(images), self.dim), np.float32)
+
+
+def test_image_vectors_are_made_again_only_when_another_model_made_them(tmp_path):
+    imgs = tmp_path / "imgs"
+    imgs.mkdir()
+    records = _folder(imgs, [(255, 0, 0), (0, 0, 255)])
+    out = tmp_path / "index"
+    build_index(records, out, clip=CountingClip("OFA-Sys/chinese-clip-vit-large-patch14-336px"), log=lambda m: None)
+    (out / "clip_model.json").unlink()  # an index from before the model was recorded: made by the PyTorch CLIP
+
+    same = CountingClip("OFA-Sys/chinese-clip-vit-large-patch14-336px@onnx-q8")  # an 8-bit copy of that model
+    build_index(records, out, clip=same, log=lambda m: None)
+    assert same.calls == 0 and load_index(out).clip.shape == (2, 3)
+    assert json.loads((out / "clip_model.json").read_text(encoding="utf-8")) == {
+        "model": "OFA-Sys/chinese-clip-vit-large-patch14-336px"}
+
+    other = CountingClip("OFA-Sys/chinese-clip-vit-base-patch16@onnx-q8", dim=5)
+    build_index(records, out, clip=other, log=lambda m: None)
+    assert other.calls == 2 and load_index(out).clip.shape == (2, 5)
+    build_index(records, out, clip=other, log=lambda m: None)
+    assert other.calls == 2

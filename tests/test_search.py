@@ -109,3 +109,15 @@ def test_evaluate_reports_match_recall_and_filler(tmp_path):
     csv_path.write_text("q,f\n猫,cat.png\n狗,dog.png\n", encoding="utf-8")
     split = Searcher(lib, models).evaluate(csv_path)["split"]
     assert split == {"match_recall": 1.0, "filler_per_query": 0.0}
+
+
+def test_image_vectors_from_another_model_are_left_out_not_a_crash(tmp_path):
+    lib, _, _ = _lib(tmp_path, {"cat.png": (255, 0, 0), "dog.png": (0, 0, 255)})
+
+    class WiderClip(FakeClip):  # a new image model before the library was re-embedded with it
+        def embed_texts(self, texts):
+            return np.ones((len(texts), 5), np.float32) / np.sqrt(5)
+
+    searcher = Searcher(lib, Models(ocr=FakeOcr(), clip=WiderClip(), bge=FakeBge()))
+    assert "clip" not in searcher.rankings("红猫")
+    assert searcher.search("猫", k=1)[0].relpath == "cat.png"

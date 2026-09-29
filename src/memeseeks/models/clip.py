@@ -11,6 +11,7 @@ class ChineseClip:
         from transformers import ChineseCLIPModel, ChineseCLIPProcessor
 
         self._torch = torch
+        self.model_id = model_id
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model = ChineseCLIPModel.from_pretrained(model_id).to(self.device).eval()
         self.processor = ChineseCLIPProcessor.from_pretrained(model_id)
