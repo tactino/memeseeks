@@ -48,6 +48,10 @@ Name: "startmenu"; Description: "在开始菜单里放一个「迷因捕手」"
 Name: "desktopicon"; Description: "在桌面放一个「迷因捕手」"
 Name: "startup"; Description: "开机时自动启动（在右下角待命）"; Flags: unchecked
 
+[InstallDelete]
+; an update starts from a clean Python, so packages the new version dropped (0.4.0: PyTorch) don't linger
+Type: filesandordirs; Name: "{app}\python"
+
 [Files]
 Source: "{#BuildDir}\app\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 

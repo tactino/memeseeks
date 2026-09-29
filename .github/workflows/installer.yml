@@ -58,6 +58,24 @@ jobs:
           $un = Start-Process (Join-Path $dir "unins000.exe") -Wait -PassThru -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES"
           Start-Sleep -Seconds 3
           if (Test-Path (Join-Path $dir "python")) { throw "uninstalling left the program behind" }
+      - name: an update over 0.3.3 (which had PyTorch) leaves none of it behind
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "memeseeks update"
+          $lib = Join-Path $env:RUNNER_TEMP "memeseeks update library"
+          $old = Join-Path $env:RUNNER_TEMP "memeseeks-0.3.3-setup.exe"
+          Invoke-WebRequest https://github.com/tactino/memeseeks/releases/download/v0.3.3/memeseeks-windows-setup.exe -OutFile $old
+          foreach ($setup in @($old, "installer/windows/build/memeseeks-windows-setup.exe")) {
+            $p = Start-Process $setup -Wait -PassThru `
+              -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/TASKS=""""", "/DIR=""$dir""", "/LIBRARY=""$lib"""
+            if ($p.ExitCode -ne 0) { throw "$setup exited with $($p.ExitCode)" }
+          }
+          if (Test-Path (Join-Path $dir "python\Lib\site-packages\torch")) { throw "the update kept PyTorch" }
+          & (Join-Path $dir "python\python.exe") -c "import memeseeks, memeseeks.tray, onnxruntime; print('updated to', memeseeks.__version__)"
+          if ($LASTEXITCODE -ne 0) { throw "the updated app does not import" }
+          $size = (Get-ChildItem $dir -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
+          Write-Host ("updated app: {0:N0} MB" -f $size)
+          Start-Process (Join-Path $dir "unins000.exe") -Wait -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES"
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
