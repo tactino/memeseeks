@@ -98,7 +98,7 @@ if (-not (Test-Path $Python)) {
 }
 
 # ---- the app (search runs on ONNX Runtime: no PyTorch) ----
-Step "安装迷因捕手（第一次大约 SIZE MB，需要一两分钟）"
+Step "安装迷因捕手（第一次大约 100 MB，需要一两分钟）"
 & $Uv pip install --python $Python "memeseeks[ml,serve] @ $Source" --reinstall-package memeseeks --refresh-package memeseeks
 if ($LASTEXITCODE -ne 0) { throw "安装失败。网络不稳时重新运行一次即可，已下载的部分不会重下" }
 & $Uv cache prune --quiet 2>$null

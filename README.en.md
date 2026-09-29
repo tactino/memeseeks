@@ -34,7 +34,7 @@ On the maintainer's text-heavy collection the first two routes already find ever
 
 ## Install
 
-**Windows** — download [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe) (about SIZE MB) and double-click it.
+**Windows** — download [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe) (about 90 MB) and double-click it.
 
 - Choose where the program, your library and the models go; no administrator needed. Models you already downloaded can be used as they are.
 - It may take ten seconds or more before the installer shows up: Windows checks the whole file the first time it runs. No need to click again.

@@ -65,7 +65,7 @@ if [ ! -x "$PY" ]; then
 fi
 
 # ---- the app (search runs on ONNX Runtime: no PyTorch) ----
-step "安装迷因捕手（第一次大约 SIZE MB，需要一两分钟）"
+step "安装迷因捕手（第一次大约 100 MB，需要一两分钟）"
 "$UV" pip install --python "$PY" "memeseeks[ml,serve] @ $SOURCE" --reinstall-package memeseeks --refresh-package memeseeks \
   || fail "安装失败。网络不稳时重新运行一次即可，已下载的部分不会重下"
 "$UV" cache prune --quiet 2>/dev/null || true

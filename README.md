@@ -20,7 +20,7 @@
 
 ## 安装
 
-**Windows**：下载 [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe)（约 SIZE MB），双击安装。
+**Windows**：下载 [memeseeks-windows-setup.exe](https://github.com/tactino/memeseeks/releases/latest/download/memeseeks-windows-setup.exe)（约 90 MB），双击安装。
 
 - 可以选装在哪个盘，也可以分别指定图库和模型放在哪；不需要管理员权限。已经下载过模型的话，选那个文件夹就不用再下。
 - 双击后可能要等十几秒才出现安装界面：Windows 第一次运行它之前要先检查整个文件，不用重复点。
