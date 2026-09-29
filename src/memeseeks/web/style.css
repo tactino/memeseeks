@@ -36,6 +36,15 @@ button { font: inherit; color: inherit; }
 body[data-view="home"] .bar { justify-content: flex-end; min-height: 30px; padding-bottom: 0; }
 body[data-view="home"] .bar .brand, body[data-view="home"] .bar .search { display: none; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex: none; }
+/* back and forward: the app's window has no browser buttons of its own */
+.hist { display: flex; gap: 6px; flex: none; margin-right: calc(var(--s2) - var(--s6)); }
+body[data-view="home"] .hist { margin-right: auto; }
+.hist button { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: var(--card); color: var(--ink); border: var(--line-thin) solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.hist button:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+.hist button:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
+.hist button:disabled { opacity: .3; cursor: default; box-shadow: none; }
+.hist svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: square; stroke-linejoin: miter; }
 .brand .cat { width: 46px; height: 46px; }
 .search { flex: 1; display: flex; min-width: 0; background: var(--card); border: var(--line-thin) solid var(--ink); }
 .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; padding: 9px 14px; color: var(--ink); }

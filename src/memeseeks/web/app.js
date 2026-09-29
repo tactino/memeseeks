@@ -1011,14 +1011,41 @@ function route() {
   return { ...Object.fromEntries(p), view: p.get("view") || (q ? "search" : "home"), q, sort: p.get("sort") || "new" };
 }
 
+// Where we are in this tab's history, for the 后退 / 前进 buttons: each entry the app makes carries its place (i), and
+// the furthest place reached is kept for the tab, so 前进 knows when there is somewhere to go.
+let histAt = 0, histMax = 0;
+const HIST_MAX = "memeseeks-hist-max";
+function readHistory() {
+  histAt = history.state && Number.isInteger(history.state.i) ? history.state.i : 0;
+  let saved = 0;
+  try { saved = +sessionStorage.getItem(HIST_MAX) || 0; } catch (e) { /* storage blocked */ }
+  histMax = Math.max(histAt, saved, histMax);
+  paintHistory();
+}
+function paintHistory() {
+  $("#hist-back").disabled = histAt <= 0;
+  $("#hist-fwd").disabled = histAt >= histMax;
+}
+$("#hist-back").addEventListener("click", () => history.back());
+$("#hist-fwd").addEventListener("click", () => history.forward());
+if (!history.state || !Number.isInteger(history.state.i)) history.replaceState({ ...(history.state || {}), app: 1, i: 0 }, "");
+readHistory();
+
 function go(url, { replace = false } = {}) {
-  history[replace ? "replaceState" : "pushState"]({ app: 1 }, "", url);  // app: going back stays in the app
+  if (!replace) {
+    histAt += 1;
+    histMax = histAt;  // a new page drops whatever 前进 led to
+    try { sessionStorage.setItem(HIST_MAX, String(histMax)); } catch (e) { /* storage blocked */ }
+  }
+  history[replace ? "replaceState" : "pushState"]({ app: 1, i: histAt }, "", url);  // app: going back stays in the app
+  paintHistory();
   return render({ back: false });
 }
 
 let renderToken = 0;
 let leavePage = null;  // a page can clean up (listeners) before the next one replaces it: node._leave
 let rendered = false, flying = null;  // flying: the meme whose picture flies between a card and its page
+let shown = null;  // the route on screen: another sort, or another search, is the same page and does not slide
 // one picture may carry the name: a meme page's own picture gives way to the card that flies
 const unnameMeme = () => view.querySelectorAll(".meme figure img").forEach((img) => { img.style.viewTransitionName = "none"; });
 async function render({ back = false, slide = true } = {}) {
@@ -1057,7 +1084,9 @@ async function render({ back = false, slide = true } = {}) {
     }
     if (r.view !== "meme") flying = null;
   };
-  if (slide && rendered && document.startViewTransition && !reduceMotion()) {
+  const samePage = shown && shown.view === r.view && (shown.id || "") === (r.id || "");
+  shown = r;
+  if (slide && !samePage && rendered && document.startViewTransition && !reduceMotion()) {
     document.documentElement.dataset.dir = back ? "back" : "forward";
     const t = document.startViewTransition(swap);
     t.ready.catch(() => {});  // skipped (say, a second click mid-way): the page still changes
@@ -1089,7 +1118,11 @@ document.addEventListener("submit", (e) => {
   const q = form.elements.q.value.trim();
   go(q ? `?q=${encodeURIComponent(q)}` : "./");
 });
-addEventListener("popstate", () => render({ back: true }));
+addEventListener("popstate", () => {
+  const was = histAt;
+  readHistory();
+  render({ back: histAt <= was });  // 前进 slides forward
+});
 
 async function refreshReviewCount() {
   try {
