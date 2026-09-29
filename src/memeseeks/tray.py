@@ -136,19 +136,26 @@ def main(argv=None) -> int:
         hinted.touch()
         Tray(icon, "迷因捕手", [("打开迷因捕手", opener(url)), ("退出", None)], hint=hint).run()
         os._exit(0)  # 退出: the server thread and the indexer stop with the process, as closing the old window did
-    run_windowed(url, icon, hinted, _answers)
+    run_windowed(url, icon, hinted, _answers, Path(home))
 
 
-def run_windowed(url: str, icon: Path, hinted: Path, answers) -> None:
-    """The window on the main thread (WebView2 wants it there), the cat on a thread of its own."""
+def run_windowed(url: str, icon: Path, hinted: Path, answers, home: Path | None = None) -> None:
+    """The window on the main thread (WebView2 wants it there), the cat on a thread of its own. The window opens at
+    once on a splash and moves on to the web app when the server answers."""
     import time
 
+    from . import splash
     from .appwindow import AppWindow
     from .wintray import Tray
 
-    deadline = time.monotonic() + 60
-    while not answers(url) and time.monotonic() < deadline:  # the page needs the server up to load
-        time.sleep(0.3)
+    def until_up() -> bool:
+        deadline = time.monotonic() + 90  # a first start also waits for Windows to check the new files
+        while not answers(url):
+            if time.monotonic() > deadline:
+                return False
+            time.sleep(0.3)
+        return True
+
     parts: dict = {}
 
     def hidden() -> None:
@@ -156,7 +163,9 @@ def run_windowed(url: str, icon: Path, hinted: Path, answers) -> None:
             hinted.touch()
             parts["tray"].show_hint("迷因捕手还在这里", "关掉窗口它也在右下角运行：点这只猫打开，右键可以退出。")
 
-    app = AppWindow(url, icon, storage=app_dir() / "webview-data", on_hidden=hidden)
+    looks = splash.looks(home)
+    app = AppWindow(url, icon, storage=app_dir() / "webview-data", on_hidden=hidden, splash=splash.html(home),
+                    theme=looks["theme"])
 
     def cat() -> None:
         # made on this thread: a window's messages go to the thread that made it, and this one waits for them
@@ -171,7 +180,7 @@ def run_windowed(url: str, icon: Path, hinted: Path, answers) -> None:
     tray = threading.Thread(target=cat, name="memeseeks-tray", daemon=True)
     tray.start()
     try:
-        app.run()
+        app.run(until_up)
     except Exception as exc:  # no WebView2 after all: the browser, and the cat as before
         print(f"the window could not open ({type(exc).__name__}: {exc}); using the browser")
         parts["tray"].items[0] = ("打开迷因捕手", opener(url))

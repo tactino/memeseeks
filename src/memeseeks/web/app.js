@@ -118,8 +118,15 @@ function applySettings(s) {
   } catch (e) { /* storage blocked */ }
   $('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue("--paper").trim();
   Frame.draw();
+  titleBar();
   return s;
 }
+// in the app's own window (appwindow.py) the title bar follows the theme too
+function titleBar() {
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.theme) api.theme(settings.theme).catch(() => {});
+}
+addEventListener("pywebviewready", titleBar);
 const settingsReady = api("/api/settings").then(applySettings).catch(() => settings);
 
 // ---------------- upload: the button, and dropping files anywhere ----------------
