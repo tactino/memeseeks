@@ -1,0 +1,43 @@
+name: models
+
+# Builds the 8-bit ONNX search models from the original BGE-M3 and Chinese-CLIP weights (tools/onnx/export_models.py),
+# checks every vector against the originals (tools/onnx/check_models.py) and, if asked, uploads them to the Hugging
+# Face repository the app downloads from (models/store.py). By hand only:
+#   gh workflow run models                 # build and check
+#   gh workflow run models -f upload=true  # also upload (needs the HF_TOKEN secret)
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: upload to Hugging Face
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      HF_HUB_DISABLE_PROGRESS_BARS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: make room (the originals, the fp32 exports and the 8-bit copies take about 9 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+      - run: pip install "torch==2.11.*" --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -e . "transformers>=4.51,<5" "sentence-transformers>=3.0" onnx "onnxruntime>=1.23" tokenizers huggingface_hub
+      - name: export and quantize
+        run: python tools/onnx/export_models.py out --only bge-m3 chinese-clip-l336 --threads 4
+      - name: the 8-bit models agree with the originals
+        run: python tools/onnx/check_models.py out
+      - name: sizes
+        run: du -sh out/*-q8 && ls -la out/*-q8
+      - name: upload
+        if: inputs.upload
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python tools/onnx/upload_models.py out
